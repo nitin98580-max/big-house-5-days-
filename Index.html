@@ -1,0 +1,2775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Big House: 5 Days — Realistic Horror Edition</title>
+<style>
+:root{
+  --bg:#050507;
+  --fg:#e6e2d8;
+  --accent:#c92a2a;
+  --gold:#ffd43b;
+  box-sizing:border-box;
+}
+*{box-sizing:inherit;user-select:none}
+html,body{
+  height:100%;margin:0;background:var(--bg);color:var(--fg);
+  font-family:"Georgia","Times New Roman",serif;overflow:hidden;
+}
+canvas{display:block;width:100%;height:100%}
+
+/* Atmospheric Overlays */
+#vg{
+  position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.88) 100%);
+  transition:opacity .3s;
+}
+#bloodVg{
+  position:fixed;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,transparent 35%,rgba(135,10,10,.55) 78%,rgba(90,0,0,.92) 100%);
+  transition:opacity .15s ease-out;
+}
+#slats{
+  position:fixed;inset:0;pointer-events:none;display:none;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.85) 0%,transparent 12%,transparent 88%,rgba(0,0,0,.9) 100%),
+    repeating-linear-gradient(90deg,#080503 0 46px,#1a110b 46px 49px,transparent 49px 58px);
+}
+#crosshair{
+  position:fixed;left:50%;top:50%;width:8px;height:8px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:rgba(255,255,255,.45);border:1px solid rgba(0,0,0,.7);
+  pointer-events:none;transition:transform .12s,background .12s,box-shadow .12s;
+  z-index:5;
+}
+#crosshair.active{
+  transform:translate(-50%,-50%) scale(1.9);
+  background:rgba(255,212,59,.9);
+  box-shadow:0 0 10px rgba(255,212,59,.8);
+}
+
+/* HUD */
+#hud{
+  position:fixed;left:18px;top:calc(14px + env(safe-area-inset-top,0px));
+  font-size:16px;text-shadow:0 2px 6px #000,0 0 12px #000;
+  pointer-events:none;line-height:1.55;z-index:6;
+  background:linear-gradient(90deg,rgba(0,0,0,.55),transparent);
+  padding:8px 16px;border-left:2px solid var(--accent);border-radius:4px;
+}
+#soundBtn{
+  position:fixed;right:18px;top:calc(14px + env(safe-area-inset-top,0px));
+  background:rgba(15,15,20,.75);color:var(--fg);border:1px solid #444;
+  border-radius:6px;padding:6px 12px;font-family:inherit;font-size:13px;
+  cursor:pointer;z-index:12;backdrop-filter:blur(4px);
+}
+#soundBtn:hover{border-color:var(--accent);color:#fff}
+
+#msg{
+  position:fixed;left:50%;bottom:11%;transform:translateX(-50%);
+  text-align:center;font-size:19px;color:#ff6b6b;
+  text-shadow:0 2px 10px #000,0 0 16px #000;
+  pointer-events:none;min-height:1.4em;z-index:6;
+  padding:6px 18px;border-radius:6px;
+}
+#fade{
+  position:fixed;inset:0;background:#000;color:var(--fg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:36px;letter-spacing:3px;opacity:0;pointer-events:none;
+  transition:opacity 1s;z-index:15;text-shadow:0 0 20px rgba(200,40,40,.6);
+}
+
+/* Main Menu / Pause Overlay */
+#ov{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:radial-gradient(circle at center,rgba(18,10,10,.88) 0%,rgba(4,4,6,.96) 100%);
+  text-align:center;padding:24px;cursor:pointer;z-index:20;
+  overflow-y:auto;
+}
+#ov h1{
+  font-size:clamp(32px,5vw,52px);margin:0 0 8px;color:var(--accent);
+  letter-spacing:4px;text-shadow:0 0 24px rgba(201,42,42,.65);
+}
+#ov .sub{
+  font-size:14px;color:#a89f91;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;
+}
+#ov p{max-width:560px;line-height:1.55;margin:6px 0;font-size:15px;color:#d6d0c4}
+#opts{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;
+  margin:14px 0;text-align:left;font-size:14px;cursor:default;
+  max-width:560px;width:100%;background:rgba(20,18,22,.85);
+  padding:16px 20px;border:1px solid #382a2a;border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.7);
+}
+#opts label{display:flex;justify-content:space-between;gap:8px;align-items:center}
+#opts select,#opts input[type=range]{
+  background:#141418;color:var(--fg);border:1px solid #4a3a3a;
+  border-radius:5px;padding:4px 6px;cursor:pointer;
+}
+#sChars{
+  grid-column:1/3;display:flex;gap:14px;flex-wrap:wrap;
+  padding-top:6px;border-top:1px solid #2e2424;align-items:center;
+}
+#sChars label{gap:5px;cursor:pointer}
+.start-btn{
+  margin-top:14px;padding:13px 34px;border:2px solid var(--accent);
+  border-radius:8px;background:linear-gradient(180deg,#b82020,#7a1111);color:#fff;
+  font-family:inherit;font-size:18px;font-weight:bold;letter-spacing:2px;
+  cursor:pointer;animation:pulseBtn 2s infinite;transition:transform .12s,background .15s;
+}
+.start-btn:hover{transform:scale(1.04);background:linear-gradient(180deg,#d62828,#961515)}
+.start-btn:active{transform:scale(0.98)}
+@keyframes pulseBtn{
+  0%,100%{box-shadow:0 0 10px rgba(201,42,42,.3)}
+  50%{box-shadow:0 0 24px rgba(201,42,42,.75)}
+}
+@media(max-width:560px){
+  #opts{grid-template-columns:1fr}
+  #sChars{grid-column:1/2}
+}
+</style>
+</head>
+<body>
+<div id="vg"></div>
+<div id="bloodVg"></div>
+<div id="slats"></div>
+<div id="crosshair"></div>
+<div id="hud"></div>
+<button id="soundBtn" title="Toggle Audio (M)">🔊 Audio: ON</button>
+<div id="msg"></div>
+<div id="fade"></div>
+
+<div id="ov">
+  <h1>BIG HOUSE: 5 DAYS</h1>
+  <div class="sub">Realistic Horror Edition</div>
+  <p>A rotting five-floor mansion &amp; flooded basement. Four deadly residents: <b>Granny, Grandpa, the Gardener, and the Butcher Cook</b>.</p>
+  <p>Each day, search drawers to find <b style="color:var(--gold)">2 golden keys</b>. Survive all 5 days to gather <b>10 keys</b>, unlock the 10 heavy padlocks on the front door (hold <b>E</b>), open the door (<b>E</b>), and escape alive.</p>
+  <p style="font-size:13.5px;color:#b5aea2"><b>WASD</b> Move &nbsp;·&nbsp; <b>Mouse</b> Look &nbsp;·&nbsp; <b>Shift</b> Run (Makes Noise!) &nbsp;·&nbsp; <b>F</b> Toggle Torch &nbsp;·&nbsp; <b>E</b> Open/Close Doors &amp; Stairs, Search Drawers &amp; Hide &nbsp;·&nbsp; <b>Stairs</b> Walk up/down steps</p>
+  <div id="opts">
+    <label>Difficulty
+      <select id="sDiff">
+        <option value="0">Easy (Practice)</option>
+        <option value="1" selected>Normal</option>
+        <option value="2">Hard (Nightmare)</option>
+      </select>
+    </label>
+    <label>Graphics Quality
+      <select id="sGfx">
+        <option value="0">Low</option>
+        <option value="1">Medium</option>
+        <option value="2" selected>High (Cinematic)</option>
+      </select>
+    </label>
+    <label>Brightness <input id="sBri" type="range" min="0.65" max="2.0" step="0.05" value="1.2"></label>
+    <label>Field of View <input id="sFov" type="range" min="60" max="100" value="72"></label>
+    <label>Master Volume <input id="sVol" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+    <label style="justify-content:flex-start;gap:8px;color:#aaa;font-size:12px">🎧 Headphones recommended</label>
+    <div id="sChars">
+      <span style="color:#c92a2a;font-weight:bold">Residents:</span>
+      <label><input type="checkbox" value="Granny" checked>Granny</label>
+      <label><input type="checkbox" value="Grandpa" checked>Grandpa</label>
+      <label><input type="checkbox" value="Gardener" checked>Gardener</label>
+      <label><input type="checkbox" value="Cook" checked>Cook</label>
+    </div>
+  </div>
+  <button id="startBtn" type="button" class="start-btn">START GAME</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+<script>
+/* ============================================================================
+   1. PROCEDURAL WEB AUDIO HORROR ENGINE (Zero external audio files)
+   ============================================================================ */
+const SFX = (() => {
+  let ctx = null, master = null, droneGain = null, chaseGain = null;
+  let muted = false, volume = 0.8, initialized = false;
+  let heartbeatTimer = 0;
+
+  function init() {
+    if (initialized) {
+      if (ctx && ctx.state === "suspended") ctx.resume();
+      return;
+    }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = muted ? 0 : volume;
+      master.connect(ctx.destination);
+
+      // Dark Ambient House Drone (Sub-bass + eerie detuned oscillators)
+      droneGain = ctx.createGain();
+      droneGain.gain.value = 0.14;
+      const droneFilter = ctx.createBiquadFilter();
+      droneFilter.type = "lowpass";
+      droneFilter.frequency.value = 140;
+      droneGain.connect(droneFilter);
+      droneFilter.connect(master);
+
+      [42, 43.2, 63, 84.5].forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        osc.type = idx % 2 === 0 ? "sawtooth" : "triangle";
+        osc.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.value = idx === 0 ? 0.35 : 0.15;
+        osc.connect(g);
+        g.connect(droneGain);
+        osc.start();
+      });
+
+      // Chase Tension Pad
+      chaseGain = ctx.createGain();
+      chaseGain.gain.value = 0.0;
+      const chaseFilter = ctx.createBiquadFilter();
+      chaseFilter.type = "bandpass";
+      chaseFilter.frequency.value = 320;
+      chaseFilter.Q.value = 2.5;
+      chaseGain.connect(chaseFilter);
+      chaseFilter.connect(master);
+
+      [110, 116.5, 164.8, 233.1].forEach(freq => {
+        const osc = ctx.createOscillator();
+        osc.type = "sawtooth";
+        osc.frequency.value = freq;
+        osc.connect(chaseGain);
+        osc.start();
+      });
+
+      initialized = true;
+    } catch (e) {
+      console.warn("Web Audio unavailable:", e);
+    }
+  }
+
+  function setVolume(v) {
+    volume = v;
+    if (master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.05);
+  }
+
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.05);
+    return !muted;
+  }
+
+  function noiseBuffer(dur) {
+    const len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  // Creaky wooden floorboard footstep
+  function footstep(loud = false, pan = 0, distGain = 1) {
+    if (!initialized || muted || distGain <= 0.02) return;
+    const t = ctx.currentTime;
+    const g = ctx.createGain();
+    const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if (p) { p.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(p); p.connect(master); }
+    else g.connect(master);
+
+    // Thud
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(loud ? 115 : 85, t);
+    osc.frequency.exponentialRampToValueAtTime(32, t + 0.11);
+    const vol = (loud ? 0.28 : 0.11) * distGain;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    osc.connect(g);
+    osc.start(t);
+    osc.stop(t + 0.14);
+
+    // Occasional wood creak
+    if (Math.random() < (loud ? 0.55 : 0.28)) {
+      const crk = ctx.createOscillator();
+      const cg = ctx.createGain();
+      crk.type = "sawtooth";
+      const f0 = 260 + Math.random() * 240;
+      crk.frequency.setValueAtTime(f0, t + 0.02);
+      crk.frequency.linearRampToValueAtTime(f0 * (0.75 + Math.random() * 0.45), t + 0.18);
+      cg.gain.setValueAtTime(0.035 * distGain * (loud ? 1.5 : 1), t + 0.02);
+      cg.gain.exponentialRampToValueAtTime(0.0008, t + 0.19);
+      crk.connect(cg);
+      cg.connect(p || master);
+      crk.start(t + 0.02);
+      crk.stop(t + 0.2);
+    }
+  }
+
+  // Drawer slide sound
+  function drawerSlide() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(0.32);
+    const flt = ctx.createBiquadFilter();
+    flt.type = "bandpass";
+    flt.frequency.setValueAtTime(320, t);
+    flt.frequency.linearRampToValueAtTime(580, t + 0.28);
+    flt.Q.value = 3;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.01, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    src.connect(flt); flt.connect(g); g.connect(master);
+    src.start(t);
+  }
+
+  // Wardrobe creak
+  function wardrobeCreak() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(190, t);
+    osc.frequency.linearRampToValueAtTime(125, t + 0.25);
+    osc.frequency.linearRampToValueAtTime(210, t + 0.45);
+    const flt = ctx.createBiquadFilter();
+    flt.type = "bandpass"; flt.frequency.value = 420; flt.Q.value = 6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.14, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+    osc.connect(flt); flt.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.5);
+  }
+
+  // Realistic Wooden Door Creak + Latch Click
+  function doorCreak(opening = true, distGain = 1) {
+    if (!initialized || muted || distGain <= 0.02) return;
+    const t = ctx.currentTime;
+
+    // Metallic latch click
+    const click = ctx.createOscillator();
+    click.type = "square";
+    click.frequency.setValueAtTime(opening ? 920 : 640, t);
+    click.frequency.exponentialRampToValueAtTime(180, t + 0.045);
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.18 * distGain, t);
+    cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    click.connect(cg); cg.connect(master);
+    click.start(t); click.stop(t + 0.055);
+
+    // Long resonant wooden hinge groan
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    const baseF = opening ? 135 : 175;
+    osc.frequency.setValueAtTime(baseF, t + 0.03);
+    osc.frequency.linearRampToValueAtTime(baseF * (opening ? 1.48 : 0.72), t + 0.35);
+    osc.frequency.linearRampToValueAtTime(baseF * (opening ? 1.18 : 0.58), t + 0.68);
+
+    const flt = ctx.createBiquadFilter();
+    flt.type = "bandpass";
+    flt.frequency.setValueAtTime(340, t + 0.03);
+    flt.frequency.linearRampToValueAtTime(520, t + 0.55);
+    flt.Q.value = 7.5;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t + 0.03);
+    g.gain.linearRampToValueAtTime(0.22 * distGain, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.72);
+
+    osc.connect(flt); flt.connect(g); g.connect(master);
+    osc.start(t + 0.03); osc.stop(t + 0.75);
+
+    // Door slam thud when closing
+    if (!opening) {
+      const thud = ctx.createOscillator();
+      thud.type = "sine";
+      thud.frequency.setValueAtTime(110, t + 0.52);
+      thud.frequency.exponentialRampToValueAtTime(34, t + 0.68);
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.28 * distGain, t + 0.52);
+      tg.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      thud.connect(tg); tg.connect(master);
+      thud.start(t + 0.52); thud.stop(t + 0.72);
+    }
+  }
+
+  // Metallic key pickup chime
+  function keyPickup() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    [1480, 2220, 2960, 3520].forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f, t + i * 0.045);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.14, t + i * 0.045);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + i * 0.045 + 0.45);
+      osc.connect(g); g.connect(master);
+      osc.start(t + i * 0.045);
+      osc.stop(t + i * 0.045 + 0.48);
+    });
+  }
+
+  // Heavy padlock unlock clank
+  function lockOpen() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(340, t);
+    osc.frequency.exponentialRampToValueAtTime(95, t + 0.14);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.24, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.17);
+  }
+
+  // Horror spot sting + raspy Granny/resident vocalization
+  function spotSting() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    // Dissonant brass/string stab
+    [138.6, 146.8, 277.2, 415.3].forEach(f => {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(f * 1.03, t);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.96, t + 0.9);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 1.1);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 1.15);
+    });
+  }
+
+  // Jumpscare / Catch slam
+  function jumpscare() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    // Sub impact
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.setValueAtTime(150, t);
+    sub.frequency.exponentialRampToValueAtTime(26, t + 0.7);
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.7, t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+    sub.connect(sg); sg.connect(master);
+    sub.start(t); sub.stop(t + 0.8);
+
+    // Screech
+    [220, 233, 311, 466, 622].forEach(f => {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 0.72, t + 0.9);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.18, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + 1.0);
+    });
+  }
+
+  // Dynamic heartbeat & chase music update
+  function updateTension(dt, dangerLevel, isBasement) {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    if (droneGain) {
+      droneGain.gain.setTargetAtTime(isBasement ? 0.25 : 0.13, t, 0.4);
+    }
+    if (chaseGain) {
+      chaseGain.gain.setTargetAtTime(dangerLevel * 0.18, t, 0.25);
+    }
+    if (dangerLevel > 0.15) {
+      const rate = 1.6 - dangerLevel * 0.95; // Faster heartbeat when closer
+      heartbeatTimer -= dt;
+      if (heartbeatTimer <= 0) {
+        heartbeatTimer = Math.max(0.38, rate);
+        // Double thump "lub-dub"
+        [0, 0.14].forEach((offset, idx) => {
+          const osc = ctx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(idx === 0 ? 64 : 52, t + offset);
+          osc.frequency.exponentialRampToValueAtTime(28, t + offset + 0.11);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime((idx === 0 ? 0.35 : 0.24) * dangerLevel, t + offset);
+          g.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.13);
+          osc.connect(g); g.connect(master);
+          osc.start(t + offset); osc.stop(t + offset + 0.14);
+        });
+      }
+    }
+  }
+
+  // Occasional eerie water drip in the basement
+  function waterDrip() {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    const fStart = 1150 + Math.random() * 550;
+    osc.frequency.setValueAtTime(fStart, t);
+    osc.frequency.exponentialRampToValueAtTime(fStart * 2.1, t + 0.085);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.09, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.1);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.11);
+  }
+
+  // Crisp mechanical flashlight switch click
+  function torchClick(on = true) {
+    if (!initialized || muted) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(on ? 1450 : 980, t);
+    osc.frequency.exponentialRampToValueAtTime(on ? 420 : 280, t + 0.035);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.045);
+  }
+
+  return {
+    init, setVolume, toggleMute, footstep, drawerSlide,
+    wardrobeCreak, doorCreak, keyPickup, lockOpen, spotSting, jumpscare, updateTension, waterDrip, torchClick
+  };
+})();
+
+/* ============================================================================
+   2. MAP & CORE WORLD CONSTANTS
+   ============================================================================ */
+// Upper floors (0..4): U = stairs up, D = stairs down to Basement (-1), EX = front exit
+const MAP = [
+  "###############",
+  "#....#.....#..#",
+  "#....#.....#.U#",
+  "#....#.....#..#",
+  "##.#####.###.##",
+  "#.............#",
+  "#............EX",
+  "##.#####.####.#",
+  "#....#.....#..#",
+  "#.D..#.....#..#",
+  "###############"
+];
+
+// Dedicated Basement (-1) layout: U = stairs leading back up to Floor 1, # = concrete/brick walls
+const BASEMENT_MAP = [
+  "###############",
+  "#..#.....#....#",
+  "#..#.....#....#",
+  "#..#.....#....#",
+  "##.###.#####.##",
+  "#.............#",
+  "#.............#",
+  "##.#####.####.#",
+  "#..#..........#",
+  "#.U#..........#",
+  "###############"
+];
+
+const C = 4, H = 3.5, W = 15, R = 11, U = [13, 2], D = [2, 9], B_STAIR_UP = [2, 9], FL = 5;
+const $ = id => document.getElementById(id);
+const ctr = v => v * C + C / 2;
+const cell = v => Math.floor(v / C);
+
+const activeGrid = () => (pf < 0 ? BASEMENT_MAP : MAP);
+
+const isWall = (x, z) => {
+  const a = cell(x), b = cell(z);
+  const grid = activeGrid();
+  if (a < 0 || b < 0 || a >= W || b >= R || grid[b][a] === "#") return true;
+  if (pf >= 0 && a === 14 && b === 6 && (pf !== 0 || !exitOpen || exitAmt < 0.6)) return true;
+  return doors.some(d => d.cx === a && d.cz === b && d.open < 0.6);
+};
+
+const blocked = (x, z, r) =>
+  isWall(x - r, z - r) || isWall(x + r, z - r) || isWall(x - r, z + r) || isWall(x + r, z + r) ||
+  (pf === 0 && x + r > 4 && x - r < 6.25 && z + r > ctr(5) - 0.65 && z - r < ctr(5) + 0.65) ||
+  furn.some(d => x + r > d.x0 && x - r < d.x1 && z + r > d.z0 && z - r < d.z1);
+
+function move(o, dx, dz, r) {
+  if (!blocked(o.x + dx, o.z, r)) o.x += dx;
+  if (!blocked(o.x, o.z + dz, r)) o.z += dz;
+}
+
+function randomOpen(floorIdx = 0) {
+  const grid = floorIdx < 0 ? BASEMENT_MAP : MAP;
+  let x, z;
+  do {
+    x = 1 + Math.floor(Math.random() * (W - 2));
+    z = 1 + Math.floor(Math.random() * (R - 2));
+  } while (grid[z][x] === "#");
+  return [x, z];
+}
+
+/* ============================================================================
+   3. THREE.JS RENDERER & ATMOSPHERIC LIGHTING
+   ============================================================================ */
+const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+ren.setSize(innerWidth, innerHeight);
+ren.setPixelRatio(Math.min(devicePixelRatio, 2));
+ren.outputEncoding = THREE.sRGBEncoding;
+ren.toneMapping = THREE.ACESFilmicToneMapping;
+ren.toneMappingExposure = 1.2;
+ren.shadowMap.enabled = true;
+ren.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(ren.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x030304);
+scene.fog = new THREE.FogExp2(0x030304, 0.052);
+
+const cam = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 65);
+scene.add(cam);
+
+addEventListener("resize", () => {
+  cam.aspect = innerWidth / innerHeight;
+  cam.updateProjectionMatrix();
+  ren.setSize(innerWidth, innerHeight);
+  if (composer) composer.setSize(innerWidth, innerHeight);
+});
+
+// Dim cold ambient + warm flashlight
+scene.add(new THREE.AmbientLight(0x221f28, 0.58));
+const hemi = new THREE.HemisphereLight(0x3a3542, 0x1a120b, 0.35);
+scene.add(hemi);
+
+const torch = new THREE.SpotLight(0xffe6bd, 2.5, 28, 0.5, 0.72, 1.15);
+torch.castShadow = true;
+torch.shadow.mapSize.set(1024, 1024);
+torch.shadow.bias = -0.0004;
+torch.shadow.camera.near = 0.2;
+torch.shadow.camera.far = 28;
+cam.add(torch);
+cam.add(torch.target);
+torch.target.position.set(0, 0, -1);
+
+// First-Person Carried Flashlight (Torch) Model in Right Hand
+const torchRig = new THREE.Group();
+const torchBodyMat = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.42, metalness: 0.85 });
+const torchTrimMat = new THREE.MeshStandardMaterial({ color: 0x5c636e, roughness: 0.32, metalness: 0.9 });
+const torchLensMat = new THREE.MeshBasicMaterial({ color: 0xfff3d1 });
+
+const torchTube = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.03, 0.24, 14), torchBodyMat);
+torchTube.rotation.x = Math.PI / 2;
+torchTube.position.set(0, 0, -0.06);
+
+const torchHead = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.034, 0.075, 16), torchTrimMat);
+torchHead.rotation.x = Math.PI / 2;
+torchHead.position.set(0, 0, -0.19);
+
+const torchSwitch = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.018, 0.04), new THREE.MeshStandardMaterial({ color: 0xb82020, roughness: 0.5 }));
+torchSwitch.position.set(0, 0.034, -0.04);
+
+const torchLens = new THREE.Mesh(new THREE.CircleGeometry(0.04, 16), torchLensMat);
+torchLens.rotation.y = Math.PI;
+torchLens.position.set(0, 0, -0.228);
+
+// Forearm / gloved hand gripping the torch
+const handMat = new THREE.MeshStandardMaterial({ color: 0x3b2820, roughness: 0.85 });
+const carryHand = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.06, 0.11), handMat);
+carryHand.position.set(0, -0.015, -0.02);
+
+torchRig.add(torchTube, torchHead, torchSwitch, torchLens, carryHand);
+torchRig.position.set(0.28, -0.24, -0.36);
+torchRig.rotation.set(0.04, -0.05, 0);
+cam.add(torchRig);
+
+let torchOn = true;
+
+/* ============================================================================
+   4. HIGH-DETAIL PROCEDURAL PBR TEXTURES (Peeling Wallpaper, Aged Oak, Grime)
+   ============================================================================ */
+function makeTex(size, fn, rep = [1, 1], isColor = true) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  fn(g, size);
+  // Subtle micro-grain
+  const img = g.getImageData(0, 0, size, size);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 16;
+    d[i] = Math.max(0, Math.min(255, d[i] + n));
+    d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+    d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rep[0], rep[1]);
+  if (isColor) t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  return t;
+}
+
+// Peeling Victorian horror wallpaper + damp water stains + baseboards
+const wallTex = makeTex(512, (g, S) => {
+  g.fillStyle = "#5c4d3e";
+  g.fillRect(0, 0, S, S);
+  // Vertical damask stripes
+  for (let x = 0; x < S; x += 32) {
+    g.fillStyle = "rgba(32,24,18,0.22)";
+    g.fillRect(x, 0, 14, S);
+    g.fillStyle = "rgba(180,160,130,0.06)";
+    g.fillRect(x + 14, 0, 4, S);
+  }
+  // Damp water stains from ceiling & floor
+  for (let i = 0; i < 22; i++) {
+    const x = Math.random() * S, y = Math.random() < 0.6 ? Math.random() * 140 : S - Math.random() * 140;
+    const rad = 25 + Math.random() * 75;
+    const gr = g.createRadialGradient(x, y, 4, x, y, rad);
+    gr.addColorStop(0, "rgba(22,16,11,0.42)");
+    gr.addColorStop(1, "rgba(22,16,11,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, S, S);
+  }
+  // Peeling plaster patches
+  for (let i = 0; i < 12; i++) {
+    const px = Math.random() * S, py = Math.random() * S;
+    g.fillStyle = "#3a332d";
+    g.beginPath();
+    g.ellipse(px, py, 12 + Math.random() * 24, 18 + Math.random() * 35, Math.random(), 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = "rgba(220,205,185,0.25)";
+    g.lineWidth = 2;
+    g.stroke();
+  }
+  // Dark wooden wainscoting / baseboard at bottom
+  g.fillStyle = "#26180f";
+  g.fillRect(0, S - 68, S, 68);
+  g.fillStyle = "#140c07";
+  g.fillRect(0, S - 72, S, 5);
+  // Top crown molding trim
+  g.fillStyle = "#24170e";
+  g.fillRect(0, 0, S, 24);
+  g.fillStyle = "#120a05";
+  g.fillRect(0, 24, S, 4);
+}, [1, 1]);
+
+const wallBump = makeTex(512, (g, S) => {
+  g.fillStyle = "#808080";
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 60; i++) {
+    g.strokeStyle = Math.random() < 0.5 ? "#505050" : "#b0b0b0";
+    g.lineWidth = 1 + Math.random() * 2;
+    g.beginPath();
+    let x = Math.random() * S, y = Math.random() * S;
+    g.moveTo(x, y);
+    for (let s = 0; s < 5; s++) { x += (Math.random() - 0.5) * 40; y += (Math.random() - 0.5) * 40; g.lineTo(x, y); }
+    g.stroke();
+  }
+  g.fillStyle = "#c8c8c8";
+  g.fillRect(0, S - 72, S, 72);
+}, [1, 1], false);
+
+// Weathered dark oak floorboards with plank seams & wood grain
+const floorTex = makeTex(512, (g, S) => {
+  const planks = 8, pw = S / planks;
+  for (let i = 0; i < planks; i++) {
+    const y = i * pw;
+    const tone = 18 + Math.random() * 11;
+    g.fillStyle = `hsl(24, 38%, ${tone}%)`;
+    g.fillRect(0, y, S, pw);
+    // Wood grain fibers
+    g.strokeStyle = "rgba(12,7,4,0.28)";
+    g.lineWidth = 1.2;
+    for (let k = 0; k < 14; k++) {
+      g.beginPath();
+      const gy = y + Math.random() * pw;
+      g.moveTo(0, gy);
+      g.bezierCurveTo(S * 0.33, gy + (Math.random() - 0.5) * 6, S * 0.66, gy + (Math.random() - 0.5) * 6, S, gy);
+      g.stroke();
+    }
+    // Plank horizontal gap
+    g.fillStyle = "#0b0704";
+    g.fillRect(0, y, S, 2.5);
+    // Vertical butt joint
+    const joint = ((i * 197 + 60) % (S - 40)) + 20;
+    g.fillRect(joint, y, 2.5, pw);
+  }
+}, [W * 1.6, R * 1.6]);
+
+const ceilTex = makeTex(256, (g, S) => {
+  g.fillStyle = "#4d463e";
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 18; i++) {
+    const gr = g.createRadialGradient(Math.random() * S, Math.random() * S, 5, Math.random() * S, Math.random() * S, 65);
+    gr.addColorStop(0, "rgba(15,12,10,0.35)");
+    gr.addColorStop(1, "rgba(15,12,10,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, S, S);
+  }
+}, [W, R]);
+
+const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, bumpMap: wallBump, bumpScale: 0.04, roughness: 0.88, metalness: 0.04 });
+const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, bumpMap: floorTex, bumpScale: 0.03, roughness: 0.48, metalness: 0.06 });
+const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 0.96 });
+
+function makePlane(y, mat, flip) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(W * C, R * C), mat);
+  m.rotation.x = flip ? Math.PI / 2 : -Math.PI / 2;
+  m.position.set(W * C / 2, y, R * C / 2);
+  m.receiveShadow = true;
+  scene.add(m);
+}
+makePlane(0, floorMat, false);
+makePlane(H, ceilMat, true);
+
+/* ============================================================================
+   5. HOUSE ARCHITECTURE, PROPS, STAIRS, DOORS & PADLOCKS
+   ============================================================================ */
+const cells = [];
+MAP.forEach((r, z) => [...r].forEach((c, x) => { if (c === "#") cells.push([x, z]); }));
+const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(C, H, C), wallMat, cells.length);
+const mt = new THREE.Matrix4();
+cells.forEach(([x, z], i) => { mt.setPosition(ctr(x), H / 2, ctr(z)); walls.setMatrixAt(i, mt); });
+walls.castShadow = walls.receiveShadow = true;
+scene.add(walls);
+
+// Dedicated Basement Concrete/Brick Wall Instances matching BASEMENT_MAP
+const bsmtCells = [];
+BASEMENT_MAP.forEach((r, z) => [...r].forEach((c, x) => { if (c === "#") bsmtCells.push([x, z]); }));
+const bsmtWallMat = new THREE.MeshStandardMaterial({
+  map: wallTex, bumpMap: wallBump, bumpScale: 0.06,
+  color: 0x5c6672, roughness: 0.94, metalness: 0.08
+});
+const bsmtWalls = new THREE.InstancedMesh(new THREE.BoxGeometry(C, H, C), bsmtWallMat, bsmtCells.length);
+bsmtCells.forEach(([x, z], i) => { mt.setPosition(ctr(x), H / 2, ctr(z)); bsmtWalls.setMatrixAt(i, mt); });
+bsmtWalls.castShadow = bsmtWalls.receiveShadow = true;
+bsmtWalls.visible = false;
+scene.add(bsmtWalls);
+
+// Flickering ceiling bulbs with glass fixtures
+const lamps = [[2, 2], [8, 2], [2, 9], [8, 9], [7, 5], [13, 2]].map(([x, z]) => {
+  const grp = new THREE.Group();
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.38, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  cord.position.y = -0.19;
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd28a }));
+  bulb.position.y = -0.4;
+  grp.add(cord, bulb);
+  grp.position.set(ctr(x), H, ctr(z));
+  scene.add(grp);
+
+  const l = new THREE.PointLight(0xffa952, 0.62, 11, 2);
+  l.position.set(ctr(x), H - 0.45, ctr(z));
+  scene.add(l);
+  return l;
+});
+
+// Wooden Stairs Up & Dark Stairwell Down
+const woodMat = new THREE.MeshStandardMaterial({ color: 0x3b2313, roughness: 0.72, bumpMap: floorTex, bumpScale: 0.02 });
+const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x221309, roughness: 0.68, bumpMap: floorTex, bumpScale: 0.02 });
+const stairUp = new THREE.Group();
+for (let i = 0; i < 7; i++) {
+  const s = new THREE.Mesh(new THREE.BoxGeometry(C - 0.6, 0.3, 0.55), woodMat);
+  s.position.set(0, 0.15 + i * 0.3, -1.3 + i * 0.48);
+  s.castShadow = s.receiveShadow = true;
+  stairUp.add(s);
+}
+const rail = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 3.4), darkWoodMat);
+rail.position.set(1.65, 1.65, 0.05);
+rail.rotation.x = -0.54;
+stairUp.add(rail);
+[-1.1, -0.35, 0.4, 1.15].forEach((zOff, idx) => {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 1.1, 8), darkWoodMat);
+  post.position.set(1.65, 0.65 + idx * 0.34, zOff);
+  post.castShadow = true;
+  stairUp.add(post);
+});
+stairUp.position.set(ctr(U[0]), 0, ctr(U[1]));
+scene.add(stairUp);
+
+const stairDown = new THREE.Group();
+const hole = new THREE.Mesh(new THREE.BoxGeometry(C - 0.5, 0.06, C - 0.5), new THREE.MeshBasicMaterial({ color: 0x020203 }));
+hole.position.y = 0.03;
+stairDown.add(hole);
+for (let i = 0; i < 4; i++) {
+  const step = new THREE.Mesh(new THREE.BoxGeometry(C - 0.8, 0.08, 0.4), woodMat);
+  step.position.set(0, 0.04, -1.0 + i * 0.65);
+  stairDown.add(step);
+}
+// Stone basement stairwell surround trim
+const trimFront = new THREE.Mesh(new THREE.BoxGeometry(C - 0.4, 0.14, 0.14), darkWoodMat);
+trimFront.position.set(0, 0.07, -(C - 0.5) / 2);
+const trimBack = trimFront.clone();
+trimBack.position.z = (C - 0.5) / 2;
+stairDown.add(trimFront, trimBack);
+stairDown.position.set(ctr(D[0]), 0, ctr(D[1]));
+scene.add(stairDown);
+
+// Basement Staircase Leading Back Up to Floor 1 (at B_STAIR_UP = [2, 9])
+const bsmtStairUp = new THREE.Group();
+for (let i = 0; i < 7; i++) {
+  const s = new THREE.Mesh(new THREE.BoxGeometry(C - 0.6, 0.3, 0.55), darkWoodMat);
+  s.position.set(0, 0.15 + i * 0.3, -1.3 + i * 0.48);
+  s.castShadow = s.receiveShadow = true;
+  bsmtStairUp.add(s);
+}
+const bRail = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 3.4), woodMat);
+bRail.position.set(1.65, 1.65, 0.05);
+bRail.rotation.x = -0.54;
+bsmtStairUp.add(bRail);
+const bLamp = new THREE.PointLight(0xffb347, 1.15, 10, 1.8);
+bLamp.position.set(0, 2.7, 0);
+bsmtStairUp.add(bLamp);
+bsmtStairUp.position.set(ctr(B_STAIR_UP[0]), 0, ctr(B_STAIR_UP[1]));
+bsmtStairUp.visible = false;
+scene.add(bsmtStairUp);
+
+const arrows = [[U, 1], [D, -1], [B_STAIR_UP, 1]].map(([p, dir]) => {
+  const a = new THREE.Mesh(
+    new THREE.ConeGeometry(0.22, 0.45, 4),
+    new THREE.MeshBasicMaterial({ color: dir > 0 ? 0xffd43b : 0x4dabf7, transparent: true, opacity: 0.85 })
+  );
+  a.position.set(ctr(p[0]), 2.45, ctr(p[1]));
+  a.rotation.x = dir > 0 ? 0 : Math.PI;
+  scene.add(a);
+  return a;
+});
+
+// Heavy Reinforced Front Exit Door with 10 Padlocks & Wooden Planks
+const exitFrame = new THREE.Group();
+const efLeft = new THREE.Mesh(new THREE.BoxGeometry(0.36, 3.25, 0.22), darkWoodMat);
+efLeft.position.set(W * C - 3.8, 1.625, ctr(6) - 1.9);
+const efRight = efLeft.clone();
+efRight.position.z = ctr(6) + 1.9;
+const efTop = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.24, 4.02), darkWoodMat);
+efTop.position.set(W * C - 3.8, 3.22, ctr(6));
+exitFrame.add(efLeft, efRight, efTop);
+scene.add(exitFrame);
+
+const door = new THREE.Group();
+const doorPanel = new THREE.Mesh(
+  new THREE.BoxGeometry(0.28, 3.1, 3.6),
+  new THREE.MeshStandardMaterial({ color: 0x2e2118, roughness: 0.65, metalness: 0.25, bumpMap: floorTex, bumpScale: 0.03 })
+);
+doorPanel.position.set(0, 1.55, 1.8);
+doorPanel.castShadow = doorPanel.receiveShadow = true;
+door.add(doorPanel);
+
+// Heavy iron handle on front door
+const exitHandle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.34, 0.08), new THREE.MeshStandardMaterial({ color: 0x8c7335, metalness: 0.85, roughness: 0.3 }));
+exitHandle.position.set(-0.18, 1.35, 3.25);
+door.add(exitHandle);
+
+// Steel reinforcement bars on exit door
+[0.6, 1.55, 2.5].forEach(y => {
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 3.55), new THREE.MeshStandardMaterial({ color: 0x26282a, metalness: 0.8, roughness: 0.4 }));
+  bar.position.set(0, y, 1.8);
+  door.add(bar);
+});
+
+const locks = [];
+for (let i = 0; i < 10; i++) {
+  const lk = new THREE.Group();
+  const lmt = new THREE.MeshStandardMaterial({ color: 0xb81d1d, metalness: 0.65, roughness: 0.35, emissive: 0x3b0000 });
+  const bd = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.24, 0.21), lmt);
+  const sh = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.022, 8, 14), new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.92, roughness: 0.25 }));
+  sh.rotation.y = Math.PI / 2;
+  sh.position.y = 0.15;
+  lk.add(bd, sh);
+  lk.position.set(-0.2, 0.85 + Math.floor(i / 2) * 0.42, 1.8 + (i % 2 ? 0.65 : -0.65));
+  door.add(lk);
+  locks.push(lk);
+}
+function unlockLock(i) {
+  const l = locks[i];
+  l.userData.t = 0.001;
+  l.children[0].material.color.set(0x2e7d32);
+  l.children[0].material.emissive.set(0x003300);
+  SFX.lockOpen();
+}
+door.position.set(W * C - 3.8, 0, ctr(6) - 1.8);
+door.userData.opened = false;
+scene.add(door);
+const doorL = new THREE.PointLight(0xff4d4d, 1.1, 10);
+doorL.position.set(W * C - 2.2, 2.3, ctr(6));
+scene.add(doorL);
+
+// Golden Keys (Spinning + Glowing inside Drawers when opened)
+const keyGeom = new THREE.Group();
+const kRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 16), new THREE.MeshStandardMaterial({ color: 0xffd43b, emissive: 0xff922b, emissiveIntensity: 1.4, metalness: 0.9, roughness: 0.2 }));
+const kShaft = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.045, 0.045), kRing.material);
+kShaft.position.x = 0.18;
+const kTooth1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.04), kRing.material);
+kTooth1.position.set(0.24, -0.04, 0);
+const kTooth2 = kTooth1.clone();
+kTooth2.position.x = 0.29;
+keyGeom.add(kRing, kShaft, kTooth1, kTooth2);
+const keyL = new THREE.PointLight(0xffd43b, 1.4, 7);
+keyGeom.add(keyL);
+keyGeom.visible = false;
+scene.add(keyGeom);
+
+const dKeys = [0, 1].map(() => {
+  const m = keyGeom.clone();
+  scene.add(m);
+  return { mesh: m, f: 1, x: 1, z: 1, got: false };
+});
+
+// Spawn Bed in Lobby
+const BX = 4.9, BZ = ctr(5), bed = new THREE.Group();
+const bm = (w, h, d, c, x, y, z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }));
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  bed.add(m);
+};
+bm(2.1, 0.3, 1.2, 0x3a2415, 0, 0.25, 0);
+bm(2.0, 0.22, 1.1, 0xd8d0c0, 0, 0.5, 0);
+bm(1.2, 0.08, 1.12, 0x6b1d1d, 0.35, 0.64, 0);
+bm(0.45, 0.16, 0.9, 0xeae6dc, -0.7, 0.68, 0);
+bm(0.12, 0.9, 1.2, 0x3a2415, -1.05, 0.6, 0);
+bed.position.set(5.15, 0, BZ);
+scene.add(bed);
+
+// Interior Creaky Doors with Realistic Door Frames, Recessed Panels & Brass Handles
+const brassMat = new THREE.MeshStandardMaterial({ color: 0xb8923a, metalness: 0.9, roughness: 0.28 });
+const doors = [[2, 4], [8, 4], [12, 4], [2, 7], [8, 7], [13, 7]].map(([cx, cz]) => {
+  const frameGrp = new THREE.Group();
+  const postL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.05, 0.28), darkWoodMat);
+  postL.position.set(-1.9, 1.525, 0);
+  const postR = postL.clone();
+  postR.position.x = 1.9;
+  const header = new THREE.Mesh(new THREE.BoxGeometry(4.02, 0.22, 0.3), darkWoodMat);
+  header.position.set(0, 3.0, 0);
+  frameGrp.add(postL, postR, header);
+  frameGrp.position.set(ctr(cx), 0, ctr(cz));
+  scene.add(frameGrp);
+
+  const g = new THREE.Group();
+  const p = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.9, 0.14), woodMat);
+  p.position.set(1.8, 1.45, 0);
+  p.castShadow = p.receiveShadow = true;
+  g.add(p);
+
+  // Recessed molded door panels (top & bottom, both sides)
+  [0.82, 2.08].forEach(py => {
+    [-0.08, 0.08].forEach(pz => {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.88, 0.03), darkWoodMat);
+      trim.position.set(1.8, py, pz);
+      g.add(trim);
+    });
+  });
+
+  // Brass doorknob + keyhole plate on both sides
+  [-0.12, 0.12].forEach(pz => {
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.26, 0.02), brassMat);
+    plate.position.set(3.2, 1.15, pz * 0.72);
+    const kn = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 10), brassMat);
+    kn.position.set(3.2, 1.2, pz);
+    g.add(plate, kn);
+  });
+
+  g.position.set(ctr(cx) - 1.8, 0, ctr(cz));
+  scene.add(g);
+  return { cx, cz, g, frameGrp, isOpen: false, open: 0, enemyWait: 0 };
+});
+
+// Atmospheric Cobwebs in Upper Room Corners
+const cobwebTex = makeTex(128, (g, S) => {
+  g.clearRect(0, 0, S, S);
+  g.strokeStyle = "rgba(215, 210, 200, 0.34)";
+  g.lineWidth = 1.4;
+  for (let a = 0; a <= Math.PI / 2; a += Math.PI / 12) {
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(Math.cos(a) * S, Math.sin(a) * S);
+    g.stroke();
+  }
+  for (let r = 22; r < S; r += 22) {
+    g.beginPath();
+    g.arc(0, 0, r, 0, Math.PI / 2);
+    g.stroke();
+  }
+});
+const cobwebMat = new THREE.MeshBasicMaterial({ map: cobwebTex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+[[4.1, 4.1, 0], [19.9, 4.1, -Math.PI / 2], [4.1, 39.9, Math.PI / 2], [55.9, 39.9, Math.PI]].forEach(([x, z, ry]) => {
+  const cw = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), cobwebMat);
+  cw.position.set(x, H - 0.65, z);
+  cw.rotation.y = ry;
+  scene.add(cw);
+});
+
+// Decorative Haunted Paintings & Floor Rugs (Visual Depth)
+[[10, 0.08, 2.0, 0], [32, 0.08, 2.0, 0], [22, 43.92, 2.0, Math.PI], [48, 43.92, 2.0, Math.PI]].forEach(([x, z, y, ry], idx) => {
+  const pg = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.6, 0.08), new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.6 }));
+  const artTex = makeTex(128, (g, S) => {
+    g.fillStyle = idx % 2 === 0 ? "#1a1412" : "#12161a";
+    g.fillRect(0, 0, S, S);
+    // Eerie silhouette portrait
+    g.fillStyle = "#5a4d44";
+    g.beginPath(); g.ellipse(64, 52, 20, 26, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#080606";
+    g.beginPath(); g.arc(56, 48, 4, 0, 7); g.arc(72, 48, 4, 0, 7); g.fill();
+    g.fillStyle = "#2b201a";
+    g.fillRect(36, 78, 56, 50);
+  });
+  const canvas = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.4), new THREE.MeshStandardMaterial({ map: artTex, roughness: 0.85 }));
+  canvas.position.z = 0.045;
+  pg.add(frame, canvas);
+  pg.position.set(x, y, z);
+  pg.rotation.y = ry;
+  scene.add(pg);
+});
+
+const rugMat = new THREE.MeshStandardMaterial({ color: 0x4a1818, roughness: 0.95 });
+[[10, 10], [30, 22], [48, 34]].forEach(([x, z]) => {
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 3.0), rugMat);
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.set(x, 0.015, z);
+  rug.receiveShadow = true;
+  scene.add(rug);
+});
+
+/* ============================================================================
+   6. REALISTIC GRANNY-STYLE CHARACTER MODELS & WEAPONS
+   ============================================================================ */
+function fabricTex(baseHex, bloodSplatter = false, stripes = false) {
+  const colorTex = makeTex(256, (g, S) => {
+    g.fillStyle = baseHex;
+    g.fillRect(0, 0, S, S);
+    // Woven cloth threads & subtle seam lines
+    g.strokeStyle = "rgba(0,0,0,0.2)";
+    g.lineWidth = 1;
+    for (let i = 0; i < S; i += 4) {
+      g.beginPath(); g.moveTo(i, 0); g.lineTo(i, S); g.stroke();
+      g.beginPath(); g.moveTo(0, i); g.lineTo(S, i); g.stroke();
+    }
+    if (stripes) {
+      g.fillStyle = "rgba(255,255,255,0.09)";
+      for (let x = 0; x < S; x += 18) g.fillRect(x, 0, 6, S);
+    }
+    // Dirt & grime patches
+    for (let i = 0; i < 18; i++) {
+      const x = Math.random() * S, y = Math.random() * S, r = 15 + Math.random() * 42;
+      const gr = g.createRadialGradient(x, y, 2, x, y, r);
+      gr.addColorStop(0, "rgba(22,15,10,0.4)");
+      gr.addColorStop(1, "rgba(22,15,10,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, S, S);
+    }
+    // Dried blood stains
+    if (bloodSplatter) {
+      for (let i = 0; i < 28; i++) {
+        const bx = Math.random() * S, by = Math.random() * S;
+        g.fillStyle = `rgba(${90 + Math.random() * 55}, 6, 6, ${0.5 + Math.random() * 0.45})`;
+        g.beginPath();
+        g.ellipse(bx, by, 3 + Math.random() * 15, 4 + Math.random() * 24, Math.random() * 3, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  }, [2, 2], true);
+
+  const bump = makeTex(256, (g, S) => {
+    g.fillStyle = "#808080";
+    g.fillRect(0, 0, S, S);
+    g.strokeStyle = "#5c5c5c";
+    g.lineWidth = 1;
+    for (let i = 0; i < S; i += 4) {
+      g.beginPath(); g.moveTo(0, i); g.lineTo(S, i); g.stroke();
+    }
+    // Fabric crease folds
+    for (let i = 0; i < 14; i++) {
+      const y = Math.random() * S;
+      g.strokeStyle = i % 2 === 0 ? "#a8a8a8" : "#555555";
+      g.lineWidth = 3 + Math.random() * 4;
+      g.beginPath();
+      g.moveTo(0, y);
+      g.bezierCurveTo(S * 0.35, y + 12, S * 0.65, y - 12, S, y);
+      g.stroke();
+    }
+  }, [2, 2], false);
+
+  return { map: colorTex, bumpMap: bump };
+}
+
+function skinMaps(baseHex, hasPoresAndVeins = true) {
+  const map = makeTex(256, (g, S) => {
+    g.fillStyle = baseHex;
+    g.fillRect(0, 0, S, S);
+    if (hasPoresAndVeins) {
+      g.strokeStyle = "rgba(95, 25, 30, 0.14)";
+      g.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        g.beginPath();
+        let x = Math.random() * S, y = Math.random() * S;
+        g.moveTo(x, y);
+        for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 35; y += (Math.random() - 0.5) * 35; g.lineTo(x, y); }
+        g.stroke();
+      }
+    }
+  }, [2, 2], true);
+
+  const bumpMap = makeTex(256, (g, S) => {
+    g.fillStyle = "#808080";
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 26; i++) {
+      g.strokeStyle = "#626262";
+      g.lineWidth = 1.5;
+      g.beginPath();
+      const y = Math.random() * S;
+      g.moveTo(0, y);
+      g.quadraticCurveTo(S * 0.5, y + (Math.random() - 0.5) * 20, S, y);
+      g.stroke();
+    }
+  }, [2, 2], false);
+
+  return { map, bumpMap };
+}
+
+// High-detail Terrifying Face Texture Generator (Granny hollow eyes, wrinkles, blood, liver spots)
+function createHorrorFaceTex(cfg) {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 256;
+  const g = c.getContext("2d");
+
+  // Dead-pale / weathered base skin
+  g.fillStyle = cfg.skin;
+  g.fillRect(0, 0, 512, 256);
+
+  // Sunken cheekbone & jaw shadows
+  const shade = g.createRadialGradient(256, 125, 25, 256, 128, 135);
+  shade.addColorStop(0, "rgba(255,255,255,0.06)");
+  shade.addColorStop(0.65, "rgba(45,32,28,0.28)");
+  shade.addColorStop(1, "rgba(15,10,10,0.65)");
+  g.fillStyle = shade;
+  g.fillRect(0, 0, 512, 256);
+
+  // Deep forehead & cheek wrinkles
+  g.strokeStyle = "rgba(38,24,20,0.52)";
+  g.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    g.beginPath();
+    g.moveTo(205, 72 + i * 5.5);
+    g.quadraticCurveTo(256, 65 + i * 5.5, 307, 72 + i * 5.5);
+    g.stroke();
+  }
+  // Nasolabial & crow's feet wrinkles
+  [[204, 140], [308, 140]].forEach(([x, y]) => {
+    for (let i = 0; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(x - 14, y + i * 5);
+      g.lineTo(x + 14, y + i * 5 + 4);
+      g.stroke();
+    }
+  });
+
+  // Liver spots for Grandpa/Granny
+  if (cfg.spots) {
+    g.fillStyle = "rgba(65,42,30,0.35)";
+    for (let i = 0; i < 18; i++) {
+      g.beginPath();
+      g.arc(190 + Math.random() * 132, 65 + Math.random() * 120, 2 + Math.random() * 4, 0, 7);
+      g.fill();
+    }
+  }
+
+  // Deep dark hollow eye sockets (Iconic Granny look!)
+  [226, 286].forEach((x, side) => {
+    const y = 118;
+    const socket = g.createRadialGradient(x, y, 4, x, y, 24);
+    socket.addColorStop(0, "#050304");
+    socket.addColorStop(0.65, "rgba(18,10,12,0.92)");
+    socket.addColorStop(1, "rgba(40,25,25,0)");
+    g.fillStyle = socket;
+    g.beginPath();
+    g.arc(x, y, 24, 0, Math.PI * 2);
+    g.fill();
+
+    // Small piercing bloodshot sclera + tiny white/milky cataract pupil
+    g.fillStyle = "#d8c8c8";
+    g.beginPath();
+    g.ellipse(x, y, 10, 6.5, 0, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = cfg.eyeColor || "#ffffff";
+    g.beginPath();
+    g.arc(x, y, 3.6, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = "#000000";
+    g.beginPath();
+    g.arc(x, y, 1.5, 0, Math.PI * 2);
+    g.fill();
+
+    // Angry furrowed brow
+    g.strokeStyle = cfg.browColor || "#2a2220";
+    g.lineWidth = cfg.thickBrow ? 5.5 : 3.2;
+    g.beginPath();
+    if (side === 0) {
+      g.moveTo(x - 16, y - 16);
+      g.lineTo(x + 15, y - 11);
+    } else {
+      g.moveTo(x - 15, y - 11);
+      g.lineTo(x + 16, y - 16);
+    }
+    g.stroke();
+  });
+
+  // Gaunt nose shadow
+  g.strokeStyle = "rgba(30,18,15,0.65)";
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(256, 122);
+  g.lineTo(250, 158);
+  g.lineTo(263, 158);
+  g.stroke();
+
+  // Creepy cracked mouth / grimace with dark teeth gaps
+  g.fillStyle = "#1c0909";
+  g.beginPath();
+  g.ellipse(256, 186, 22, 6.5, 0, 0, Math.PI * 2);
+  g.fill();
+  // Yellowed crooked teeth
+  g.fillStyle = "#cfc39d";
+  for (let tx = 240; tx <= 270; tx += 7) {
+    if (tx === 254) continue; // Missing tooth gap like Granny!
+    g.fillRect(tx, 182, 4, 4);
+    g.fillRect(tx + 1, 187, 3.5, 3.5);
+  }
+
+  // Dried blood trickle from mouth corner (Granny & Cook)
+  if (cfg.mouthBlood) {
+    g.fillStyle = "#6e0909";
+    g.beginPath();
+    g.moveTo(274, 188);
+    g.lineTo(279, 214);
+    g.lineTo(271, 208);
+    g.closePath();
+    g.fill();
+  }
+
+  // Grandpa bushy grey mustache + stubble
+  if (cfg.stache) {
+    g.fillStyle = "#8c8c8c";
+    g.beginPath();
+    g.ellipse(256, 173, 30, 7.5, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "rgba(45,45,45,0.22)";
+    for (let i = 0; i < 160; i++) {
+      g.fillRect(210 + Math.random() * 92, 165 + Math.random() * 45, 1.5, 1.5);
+    }
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  return t;
+}
+
+// Build Iconic Granny-style Resident Mesh with Realistic Anatomy, Joints & Weapons
+function buildHorrorCharacter(type) {
+  const configs = {
+    granny: {
+      skin: "#b8b0a6", eyeColor: "#eef6ff", browColor: "#9e9890",
+      cloth: "#8a857e", apron: "#6e6860", hair: 0xd8d5ce,
+      h: 0.96, s: 0.92, hunch: 0.34, spots: true, mouthBlood: true, bloodCloth: true
+    },
+    grandpa: {
+      skin: "#ad9a89", eyeColor: "#c8d6d8", browColor: "#7a7a7a",
+      cloth: "#3b4738", apron: "#4e4332", hair: 0x8a8a8a,
+      h: 1.15, s: 1.06, hunch: 0.24, spots: true, stache: true, thickBrow: true
+    },
+    gardener: {
+      skin: "#8f755c", eyeColor: "#ffe066", browColor: "#261d14",
+      cloth: "#3d422e", apron: "#2d2418", hair: 0x241c12,
+      h: 1.10, s: 1.04, hunch: 0.16, spots: false
+    },
+    cook: {
+      skin: "#cbb8a6", eyeColor: "#ff6b6b", browColor: "#2b2220",
+      cloth: "#d4d0c8", apron: "#e0dcd4", hair: 0x3b322c,
+      h: 1.02, s: 1.32, hunch: 0.08, mouthBlood: true, bloodCloth: true
+    }
+  };
+
+  const K = configs[type];
+  const S = K.s, Hh = K.h;
+  const root = new THREE.Group();
+  const torsoPivot = new THREE.Group();
+  const headPivot = new THREE.Group();
+
+  const clothMaps = fabricTex(K.cloth, K.bloodCloth, type === "grandpa");
+  const apronMaps = fabricTex(K.apron, type === "cook" || type === "granny", false);
+  const sMaps = skinMaps(K.skin, true);
+
+  const clothMat = new THREE.MeshStandardMaterial({
+    map: clothMaps.map,
+    bumpMap: clothMaps.bumpMap,
+    bumpScale: 0.025,
+    roughness: 0.92,
+    side: THREE.DoubleSide
+  });
+  const apronMat = new THREE.MeshStandardMaterial({
+    map: apronMaps.map,
+    bumpMap: apronMaps.bumpMap,
+    bumpScale: 0.02,
+    roughness: 0.9,
+    side: THREE.DoubleSide
+  });
+  const skinMat = new THREE.MeshStandardMaterial({
+    map: sMaps.map,
+    bumpMap: sMaps.bumpMap,
+    bumpScale: 0.015,
+    roughness: 0.68
+  });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1514, roughness: 0.88 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: K.hair, bumpMap: clothMaps.bumpMap, bumpScale: 0.02, roughness: 0.95 });
+
+  // Tattered Nightgown / Coat / Overalls body + Collar & Hem Trim
+  const profile = type === "granny"
+    ? [[0, 0.06], [0.42, 0.06], [0.40, 0.25], [0.32, 0.68], [0.25, 1.05], [0.22, 1.28], [0.11, 1.38], [0, 1.39]]
+    : [[0, 0.35], [0.36, 0.35], [0.35, 0.75], [0.31, 1.12], [0.26, 1.32], [0.13, 1.40], [0, 1.41]];
+
+  const bodyMesh = new THREE.Mesh(
+    new THREE.LatheGeometry(profile.map(p => new THREE.Vector2(p[0] * S, p[1] * Hh)), 26),
+    clothMat
+  );
+  bodyMesh.scale.z = type === "cook" ? 0.94 : 0.78;
+  root.add(bodyMesh);
+
+  // Tattered lace collar for Granny & heavy belt/straps for others
+  if (type === "granny") {
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.16 * S, 0.032 * S, 10, 20), apronMat);
+    collar.rotation.x = Math.PI / 2 + 0.2;
+    collar.position.set(0, 1.35 * Hh, 0.02 * S);
+    root.add(collar);
+  } else {
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.325 * S, 0.335 * S, 0.09 * Hh, 20), darkMat);
+    belt.scale.z = type === "cook" ? 0.94 : 0.78;
+    belt.position.y = 0.76 * Hh;
+    root.add(belt);
+    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.09 * S, 0.08 * Hh, 0.03), brassMat);
+    buckle.position.set(0, 0.76 * Hh, (type === "cook" ? 0.32 : 0.27) * S);
+    root.add(buckle);
+  }
+
+  // Apron / Vest / Overalls front + shoulder straps
+  if (type === "cook" || type === "gardener" || type === "grandpa") {
+    const front = new THREE.Mesh(new THREE.BoxGeometry(0.46 * S, 0.82 * Hh, 0.06), apronMat);
+    front.position.set(0, 0.85 * Hh, 0.28 * S);
+    front.rotation.x = 0.08;
+    root.add(front);
+    [-0.14, 0.14].forEach(sx => {
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.065 * S, 0.45 * Hh, 0.035), apronMat);
+      strap.position.set(sx * S, 1.16 * Hh, 0.21 * S);
+      strap.rotation.x = -0.22;
+      root.add(strap);
+    });
+  }
+
+  // Upper spine & head
+  const yy = v => (v - 0.88) * Hh;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065 * S, 0.085 * S, 0.16 * Hh, 12), skinMat);
+  neck.position.y = yy(1.40);
+  torsoPivot.add(neck);
+
+  const headTex = createHorrorFaceTex(K);
+  const headMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.235 * S, 28, 22),
+    new THREE.MeshStandardMaterial({ map: headTex, bumpMap: headTex, bumpScale: 0.018, roughness: 0.65 })
+  );
+  headMesh.scale.set(0.94, 1.15, 1.02);
+  headMesh.rotation.y = -Math.PI / 2;
+  headPivot.add(headMesh);
+
+  // Subtle glowing / piercing eye glints so enemies stand out in dark hallways
+  const glintMat = new THREE.MeshBasicMaterial({ color: K.eyeColor });
+  [-0.075, 0.075].forEach(ex => {
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.014 * S, 6, 6), glintMat);
+    glint.position.set(ex * S, 0.01 * Hh, 0.225 * S);
+    headPivot.add(glint);
+  });
+
+  // Hooked/Crooked Nose
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.038 * S, 0.11 * S, 10), skinMat);
+  nose.rotation.x = Math.PI / 2 + 0.15;
+  nose.position.set(0, -0.02 * Hh, 0.24 * S);
+  headPivot.add(nose);
+
+  // Ears
+  [-1, 1].forEach(side => {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.048 * S, 10, 8), skinMat);
+    ear.position.set(side * 0.22 * S, -0.01 * Hh, -0.01);
+    ear.scale.z = 0.55;
+    headPivot.add(ear);
+  });
+
+  // Character-specific Headwear & Hair
+  if (type === "granny") {
+    const scalp = new THREE.Mesh(new THREE.SphereGeometry(0.244 * S, 22, 16, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
+    scalp.scale.set(0.95, 1.15, 1.03);
+    scalp.rotation.x = -0.32;
+    scalp.position.set(0, 0.02, -0.02);
+    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.115 * S, 16, 14), hairMat);
+    bun.position.set(0, 0.11 * Hh, -0.23 * S);
+    const hairpin = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.18 * S, 6), darkMat);
+    hairpin.rotation.z = Math.PI / 2 - 0.3;
+    hairpin.position.set(0, 0.11 * Hh, -0.24 * S);
+    const strand = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.16, 0.015), hairMat);
+    strand.position.set(0.18 * S, -0.05, 0.12 * S);
+    strand.rotation.z = -0.2;
+    headPivot.add(scalp, bun, hairpin, strand);
+  } else if (type === "grandpa") {
+    [-1, 1].forEach(side => {
+      const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.075 * S, 10, 8), hairMat);
+      tuft.scale.set(0.6, 0.9, 1.3);
+      tuft.position.set(side * 0.21 * S, 0.04 * Hh, -0.04 * S);
+      headPivot.add(tuft);
+    });
+  } else if (type === "gardener") {
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x4f432b, bumpMap: clothMaps.bumpMap, bumpScale: 0.02, roughness: 0.95 });
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.46 * S, 0.48 * S, 0.025, 24), hatMat);
+    brim.position.y = 0.14 * Hh;
+    brim.rotation.x = 0.12;
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.21 * S, 0.25 * S, 0.19, 20), hatMat);
+    crown.position.y = 0.24 * Hh;
+    crown.rotation.x = 0.12;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * S, 0.252 * S, 0.04, 20), darkMat);
+    band.position.y = 0.16 * Hh;
+    band.rotation.x = 0.12;
+    headPivot.add(brim, crown, band);
+  } else if (type === "cook") {
+    const chefMat = new THREE.MeshStandardMaterial({ map: fabricTex("#e6e2da", true, false).map, bumpMap: clothMaps.bumpMap, bumpScale: 0.02, roughness: 0.9 });
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.23 * S, 0.23 * S, 0.13, 20), chefMat);
+    band.position.y = 0.16 * Hh;
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.28 * S, 20, 16), chefMat);
+    puff.scale.y = 0.85;
+    puff.position.y = 0.34 * Hh;
+    headPivot.add(band, puff);
+  }
+
+  headPivot.position.y = yy(1.60);
+  torsoPivot.add(headPivot);
+
+  // Articulated Arms + Joints + Signature Weapons in Right Hand!
+  const arms = [-1, 1].map(side => {
+    const shoulder = new THREE.Group();
+    const shoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.072 * S, 10, 8), clothMat);
+    const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.068 * S, 0.058 * S, 0.32 * Hh, 12), clothMat);
+    upperArm.position.y = -0.16 * Hh;
+
+    const elbow = new THREE.Group();
+    elbow.position.y = -0.32 * Hh;
+    const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.056 * S, 10, 8), skinMat);
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.055 * S, 0.045 * S, 0.28 * Hh, 12), skinMat);
+    forearm.position.y = -0.14 * Hh;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.062 * S, 10, 8), skinMat);
+    hand.scale.set(0.85, 1.15, 1.1);
+    hand.position.y = -0.29 * Hh;
+
+    elbow.add(elbowJoint, forearm, hand);
+    elbow.rotation.x = -0.45;
+
+    if (side === 1) {
+      const weapon = new THREE.Group();
+      weapon.position.set(0, -0.29 * Hh, 0.04);
+      weapon.rotation.x = Math.PI / 2 - 0.25;
+
+      if (type === "granny") {
+        const batWood = new THREE.MeshStandardMaterial({ color: 0x6b4423, bumpMap: floorTex, bumpScale: 0.02, roughness: 0.65 });
+        const bloodMat = new THREE.MeshStandardMaterial({ color: 0x6e0808, roughness: 0.42 });
+        const tapeMat = new THREE.MeshStandardMaterial({ color: 0x1e1b18, roughness: 0.85 });
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.35, 12), batWood);
+        handle.position.y = 0.15;
+        const gripTape = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.026, 0.14, 12), tapeMat);
+        gripTape.position.y = 0.08;
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.028, 0.52, 14), batWood);
+        barrel.position.y = 0.56;
+        const bloodTip = new THREE.Mesh(new THREE.CylinderGeometry(0.049, 0.044, 0.24, 14), bloodMat);
+        bloodTip.position.y = 0.70;
+        weapon.add(handle, gripTape, barrel, bloodTip);
+      } else if (type === "grandpa") {
+        const caneMat = new THREE.MeshStandardMaterial({ color: 0x26170c, bumpMap: floorTex, bumpScale: 0.02, roughness: 0.55, metalness: 0.2 });
+        const ferule = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.08, 10), brassMat);
+        ferule.position.y = -0.14;
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.02, 0.95, 12), caneMat);
+        shaft.position.y = 0.34;
+        const crook = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 10, 14, Math.PI), caneMat);
+        crook.position.set(0, 0.81, 0.07);
+        weapon.add(ferule, shaft, crook);
+      } else if (type === "gardener") {
+        const rustMat = new THREE.MeshStandardMaterial({ color: 0x5c3424, metalness: 0.78, roughness: 0.52 });
+        const pivotBolt = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.04, 8), darkMat);
+        pivotBolt.rotation.z = Math.PI / 2;
+        pivotBolt.position.y = 0.16;
+        weapon.add(pivotBolt);
+        [-0.08, 0.08].forEach(ang => {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.55, 0.06), rustMat);
+          blade.position.y = 0.34;
+          blade.rotation.z = ang;
+          weapon.add(blade);
+        });
+      } else if (type === "cook") {
+        const steelMat = new THREE.MeshStandardMaterial({ color: 0xc2c8ce, metalness: 0.92, roughness: 0.2 });
+        const bloodMat = new THREE.MeshStandardMaterial({ color: 0x7a0909, roughness: 0.38 });
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 10), darkMat);
+        grip.position.y = 0.08;
+        const bolster = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.03, 0.06), brassMat);
+        bolster.position.y = 0.17;
+        const cleaver = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.34, 0.15), steelMat);
+        cleaver.position.set(0, 0.34, 0.04);
+        const edgeBlood = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.32, 0.04), bloodMat);
+        edgeBlood.position.set(0, 0.34, 0.10);
+        weapon.add(grip, bolster, cleaver, edgeBlood);
+      }
+      elbow.add(weapon);
+      shoulder.userData.weapon = weapon;
+    }
+
+    shoulder.add(shoulderJoint, upperArm, elbow);
+    shoulder.userData.elbow = elbow;
+    shoulder.position.set(side * 0.36 * S, yy(1.25), 0);
+    torsoPivot.add(shoulder);
+    return shoulder;
+  });
+
+  // Articulated Legs, Knees & Worn Shoes
+  const legs = [-1, 1].map(side => {
+    const hip = new THREE.Group();
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.062 * S, 0.05 * S, 0.52 * Hh, 12), type === "granny" ? skinMat : darkMat);
+    leg.position.y = -0.26 * Hh;
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.13 * S, 0.075, 0.26 * S), darkMat);
+    shoe.position.set(0, -0.52 * Hh, 0.06 * S);
+    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.138 * S, 0.025, 0.27 * S), new THREE.MeshStandardMaterial({ color: 0x0d0b0a, roughness: 0.95 }));
+    sole.position.set(0, -0.55 * Hh, 0.06 * S);
+    hip.add(leg, shoe, sole);
+    hip.position.set(side * 0.13 * S, 0.52 * Hh, 0);
+    root.add(hip);
+    return hip;
+  });
+
+  torsoPivot.position.y = 0.88 * Hh;
+  torsoPivot.rotation.x = K.hunch;
+  root.add(torsoPivot);
+
+  root.traverse(n => { if (n.isMesh) n.castShadow = true; });
+  root.userData = { legs, arms, torsoPivot, headPivot, baseHunch: K.hunch, type };
+  scene.add(root);
+  return root;
+}
+
+const chars = [
+  { n: "Granny", sp: 1.75, mesh: buildHorrorCharacter("granny") },
+  { n: "Grandpa", sp: 1.55, mesh: buildHorrorCharacter("grandpa") },
+  { n: "Gardener", sp: 2.0, mesh: buildHorrorCharacter("gardener") },
+  { n: "Cook", sp: 2.25, mesh: buildHorrorCharacter("cook") }
+];
+chars.forEach(c => {
+  c.alert = 0;
+  c.tm = 10;
+  c.follow = 0;
+  c.stepAcc = 0;
+  c.attackAnim = 0;
+  c.target = randomOpen();
+});
+
+/* ============================================================================
+   7. INTERACTIVE FURNITURE: DRESSERS (WITH VISIBLE KEYS) & SLATTED WARDROBES
+   ============================================================================ */
+const DR = [[12, 4.35, 0], [34, 4.35, 0], [12, 39.65, Math.PI], [34, 39.65, Math.PI], [52, 39.65, Math.PI], [22, 20.35, 0], [22, 27.65, Math.PI], [42, 20.35, 0]];
+const WR = [[7, 4.4, 0], [40, 4.4, 0], [7, 39.6, Math.PI], [40, 39.6, Math.PI]];
+
+const drMat = new THREE.MeshStandardMaterial({ color: 0x4a2e19, roughness: 0.62, bumpMap: floorTex, bumpScale: 0.02 });
+const inMat = new THREE.MeshStandardMaterial({ color: 0x1e120a, roughness: 0.92 });
+const knobMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.25 });
+const rectOf = (x, z, hw, hd) => ({ x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd });
+
+const dres = DR.map(([x, z, ry]) => {
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.05, 0.72), drMat);
+  b.position.y = 0.525;
+  b.castShadow = b.receiveShadow = true;
+  g.add(b);
+
+  const drs = [0, 1, 2].map(j => {
+    const dg = new THREE.Group();
+    const f = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 0.04), drMat);
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 8), knobMat);
+    const ib = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.21, 0.52), inMat);
+    f.position.z = 0.38;
+    k.position.z = 0.42;
+    ib.position.z = 0.1;
+    dg.add(f, k, ib);
+    dg.position.y = 0.21 + j * 0.31;
+    g.add(dg);
+    dg.traverse(n => { if (n.isMesh) n.castShadow = true; });
+    return dg;
+  });
+
+  g.position.set(x, 0, z);
+  g.rotation.y = ry;
+  scene.add(g);
+  return { cx: x, cz: z, g, drs, o: [0, 0, 0], ...rectOf(x, z, 0.82, 0.36) };
+});
+
+const wards = WR.map(([x, z, ry]) => {
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1.45, 2.45, 0.82), drMat);
+  b.position.y = 1.225;
+  b.castShadow = b.receiveShadow = true;
+  g.add(b);
+
+  [-0.36, 0.36].forEach(s => {
+    const d = new THREE.Mesh(new THREE.BoxGeometry(0.66, 2.24, 0.04), new THREE.MeshStandardMaterial({ color: 0x5c3a20, roughness: 0.52 }));
+    d.position.set(s, 1.22, 0.43);
+    g.add(d);
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 8), knobMat);
+    k.position.set(s * 0.22, 1.22, 0.47);
+    g.add(k);
+  });
+
+  g.position.set(x, 0, z);
+  g.rotation.y = ry;
+  scene.add(g);
+  return { cx: x, cz: z, ry, g, ...rectOf(x, z, 0.72, 0.41) };
+});
+
+const furn = dres.concat(wards);
+const dState = {};
+function resetDrawers() {
+  for (const f of [-1, 0, 1, 2, 3, 4]) {
+    dState[f] = dres.map(() => [0, 1, 2].map(() => ({ key: null, done: false })));
+  }
+}
+resetDrawers();
+
+// Flooded / Industrial Basement Props (Boiler, Iron Bars, Hanging Chains, Water Puddles)
+const bsmt = new THREE.Group();
+const bsL = new THREE.PointLight(0x4c6ef5, 0.9, 26, 1.8);
+bsL.position.set(30, 2.75, 22);
+const bsRedL = new THREE.PointLight(0xc92a2a, 0.65, 14, 2);
+bsRedL.position.set(46, 2.4, 34);
+bsL.visible = bsRedL.visible = bsmt.visible = false;
+scene.add(bsL, bsRedL, bsmt);
+{
+  const barM = new THREE.MeshStandardMaterial({ color: 0x3b2d22, roughness: 0.75, metalness: 0.25 });
+  const pipeM = new THREE.MeshStandardMaterial({ color: 0x5c4938, roughness: 0.48, metalness: 0.78 });
+  const ironBarM = new THREE.MeshStandardMaterial({ color: 0x1e2124, roughness: 0.5, metalness: 0.88 });
+  const waterM = new THREE.MeshStandardMaterial({ color: 0x182634, roughness: 0.12, metalness: 0.75, transparent: true, opacity: 0.78 });
+
+  // Barrels & industrial crates
+  [16, 18, 26, 28, 30, 34, 36, 38, 48, 50].forEach((x, i) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.92, 14), barM);
+    b.position.set(x, 0.46, i % 2 ? 27.4 : 20.6);
+    b.castShadow = b.receiveShadow = true;
+    bsmt.add(b);
+  });
+
+  // Overhead rusty pipes
+  [20.4, 27.6].forEach(z => {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 52, 12), pipeM);
+    p.rotation.z = Math.PI / 2;
+    p.position.set(30, 3.05, z);
+    bsmt.add(p);
+  });
+
+  // Rusty Boiler Furnace in Basement
+  const boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 2.1, 18), ironBarM);
+  boiler.position.set(46, 1.05, 34);
+  boiler.castShadow = boiler.receiveShadow = true;
+  const boilerCap = new THREE.Mesh(new THREE.SphereGeometry(0.95, 18, 12), pipeM);
+  boilerCap.position.set(46, 2.1, 34);
+  bsmt.add(boiler, boilerCap);
+
+  // Prison / Cell Iron Bars in Northeast Basement Chamber
+  for (let bx = 37; bx <= 43; bx += 0.65) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, H - 0.1, 8), ironBarM);
+    bar.position.set(bx, H / 2, 16.0);
+    bar.castShadow = true;
+    bsmt.add(bar);
+  }
+
+  // Hanging Chains from Basement Ceiling
+  [[22, 22, 1.4], [34, 25, 1.8], [46, 22, 1.2]].forEach(([cx, cz, len]) => {
+    const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, len, 6), ironBarM);
+    ch.position.set(cx, H - len / 2, cz);
+    bsmt.add(ch);
+  });
+
+  // Dark Stagnant Water Puddles on Basement Floor
+  [[22, 22, 2.2, 1.5], [38, 34, 2.8, 1.9], [14, 22, 1.8, 1.4]].forEach(([wx, wz, rx, rz]) => {
+    const pud = new THREE.Mesh(new THREE.CircleGeometry(1, 20), waterM);
+    pud.rotation.x = -Math.PI / 2;
+    pud.scale.set(rx, rz, 1);
+    pud.position.set(wx, 0.02, wz);
+    pud.receiveShadow = true;
+    bsmt.add(pud);
+  });
+
+  [[8, 22], [30, 24]].forEach(([x, z]) => {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), barM);
+    c.position.set(x, 0.475, z + 3);
+    c.castShadow = true;
+    bsmt.add(c);
+  });
+}
+
+/* ============================================================================
+   8. PATHFINDING, LINE OF SIGHT & GAME LOGIC
+   ============================================================================ */
+function bfs(sx, sz, tx, tz, floorIdx = pf) {
+  if (sx === tx && sz === tz) return null;
+  const grid = floorIdx < 0 ? BASEMENT_MAP : MAP;
+  const prev = new Map(), k = (x, z) => z * W + x, q = [[sx, sz]];
+  prev.set(k(sx, sz), null);
+  while (q.length) {
+    const [x, z] = q.shift();
+    if (x === tx && z === tz) break;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, nz = z + dz;
+      if (nx < 0 || nz < 0 || nx >= W || nz >= R || grid[nz][nx] === "#" || prev.has(k(nx, nz))) continue;
+      prev.set(k(nx, nz), [x, z]);
+      q.push([nx, nz]);
+    }
+  }
+  if (!prev.has(k(tx, tz))) return null;
+  let cur = [tx, tz], p = prev.get(k(tx, tz));
+  while (p && !(p[0] === sx && p[1] === sz)) {
+    cur = p;
+    p = prev.get(k(cur[0], cur[1]));
+  }
+  return cur;
+}
+
+function sees(c, d) {
+  if (hid || d >= diff.sight) return false;
+  const dx = P.x - c.x, dz = P.z - c.z, n = Math.ceil(d / 0.5);
+  for (let i = 1; i < n; i++) {
+    if (isWall(c.x + dx * i / n, c.z + dz * i / n)) return false;
+  }
+  return true;
+}
+
+let P = { x: ctr(2), z: ctr(5) }, wake = 0, total = 0, unlocked = 0, exitOpen = false, exitAmt = 0, unlockCd = 0;
+let pf = 0, yaw = 0, pitch = 0, day = 1, state = "menu", held = {}, stairCd = 0, msgT = 0, run = false, moving = false;
+let playerStepAcc = 0, dripTimer = 3.5, stairsClosed = false, stairGateAmt = 0;
+
+const arriveUp = () => ({ x: ctr(D[0] + 1), z: ctr(D[1]) });
+const arriveDown = () => ({ x: ctr(B_STAIR_UP[0] + 1), z: ctr(B_STAIR_UP[1]) });
+const arriveBasementUp = () => ({ x: ctr(D[0] + 1), z: ctr(D[1]) });
+
+// Visual trapdoor/gate bar across stairs when closed so player clearly sees stairs are closed
+const stairHatchMat = new THREE.MeshStandardMaterial({ color: 0x3b2313, roughness: 0.72, metalness: 0.25 });
+const stairHatchUp = new THREE.Mesh(new THREE.BoxGeometry(C - 0.5, 0.14, C - 0.5), stairHatchMat);
+stairHatchUp.position.set(ctr(U[0]), 0.12, ctr(U[1]));
+stairHatchUp.visible = false;
+scene.add(stairHatchUp);
+
+const stairHatchDown = new THREE.Mesh(new THREE.BoxGeometry(C - 0.5, 0.14, C - 0.5), stairHatchMat);
+stairHatchDown.position.set(ctr(D[0]), 0.12, ctr(D[1]));
+stairHatchDown.visible = false;
+scene.add(stairHatchDown);
+
+function setFloor(f) {
+  pf = f;
+  bsmtWalls.visible = (f < 0);
+  walls.visible = (f >= 0);
+  if (f < 0) {
+    wallMat.color.setHex(0x6c757d);
+    floorMat.color.setHex(0x3a434e);
+    scene.background.setHex(0x05080f);
+    scene.fog.color.setHex(0x05080f);
+    scene.fog.density = 0.065;
+  } else {
+    wallMat.color.setHSL((18 + f * 38) / 360, 0.22, 0.84);
+    floorMat.color.setHex(0xffffff);
+    scene.background.setHex(0x030304);
+    scene.fog.color.setHex(0x030304);
+    scene.fog.density = 0.05;
+  }
+}
+
+function newDay() {
+  setFloor(0);
+  P = { x: BX, z: BZ };
+  yaw = -Math.PI / 2;
+  pitch = 0;
+  wake = 3.2;
+  torchOn = true;
+  torch.intensity = 2.5;
+  torchLensMat.color.setHex(0xfff3d1);
+  const fd = $("fade");
+  fd.style.transition = "none";
+  fd.textContent = "DAY " + day;
+  fd.style.opacity = 1;
+  void fd.offsetWidth;
+  fd.style.transition = "opacity 2.2s";
+  setTimeout(() => { fd.style.opacity = 0; }, 350);
+
+  resetDrawers();
+  doors.forEach(d => { d.isOpen = false; d.open = 0; d.enemyWait = 0; });
+  hid = null;
+  $("slats").style.display = "none";
+  const fl = [-1, 1, 2, 3, 4];
+  dKeys.forEach(k => {
+    k.f = fl[Math.floor(Math.random() * 5)];
+    k.got = false;
+    k.mesh.visible = false;
+    let di, dj;
+    do {
+      di = Math.floor(Math.random() * dres.length);
+      dj = Math.floor(Math.random() * 3);
+    } while (dState[k.f][di][dj].key);
+    dState[k.f][di][dj].key = k;
+    k.di = di;
+    k.dj = dj;
+  });
+
+  chars.forEach((c, i) => {
+    c.f = 1 + ((i + day) % 4);
+    const p = randomOpen(c.f);
+    c.x = ctr(p[0]);
+    c.z = ctr(p[1]);
+    c.alert = 0;
+    c.follow = 0;
+    c.attackAnim = 0;
+  });
+  say("Day " + day + ": Search drawers quietly for 2 golden keys...");
+}
+
+function say(t) {
+  $("msg").textContent = t;
+  msgT = 3.5;
+}
+
+function end(win) {
+  if (state === "over") return;
+  state = "over";
+  if (!win) {
+    SFX.jumpscare();
+    $("bloodVg").style.opacity = 1;
+  } else {
+    SFX.keyPickup();
+  }
+  if (document.pointerLockElement && document.exitPointerLock) {
+    try { document.exitPointerLock(); } catch (e) {}
+  }
+  const o = $("ov");
+  o.style.display = "flex";
+  o.innerHTML = win === true
+    ? '<h1 style="color:#40c057">YOU ESCAPED THE HOUSE!</h1><p>You unlocked all 10 locks and survived all 5 days.</p><button type="button" class="start-btn" onclick="location.reload()">PLAY AGAIN</button>'
+    : '<h1>CAUGHT ON DAY ' + day + '</h1><p style="font-size:18px;color:#ff8787">' + win + '</p><button type="button" class="start-btn" onclick="location.reload()">TRY AGAIN</button>';
+}
+
+function tp(c, f, a) {
+  c.f = f;
+  c.x = a.x;
+  c.z = a.z;
+}
+
+let diff = { spd: 1, hear: 14, alert: 5, sight: 16, catch: 1.15 };
+let climb = null, composer = null, bloom = null, grade = null, hq = false, eTap = false, pendHit = null, hid = null;
+
+// Cinematic Post-Processing Shader
+const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    exposure: { value: 1.2 },
+    time: { value: 0 },
+    chroma: { value: 0.0018 }
+  },
+  vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float exposure,time,chroma;varying vec2 vUv;
+float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233))+time)*43758.5453);}
+vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
+void main(){vec2 d=vUv-.5;
+ vec3 c=vec3(texture2D(tDiffuse,vUv+d*chroma*2.).r,texture2D(tDiffuse,vUv).g,texture2D(tDiffuse,vUv-d*chroma*2.).b);
+ c=aces(c*exposure);float l=dot(c,vec3(.299,.587,.114));
+ c=mix(vec3(l),c,1.14);c=mix(c*vec3(.86,.98,1.12),c*vec3(1.12,.98,.86),smoothstep(.15,.72,l));
+ c=pow(c,vec3(1./2.2));c+=(h(vUv*1000.)-.5)*.052;
+ float v=smoothstep(.95,.28,length(d)*1.28);c*=mix(.45,1.,v);gl_FragColor=vec4(c,1.);}`
+};
+
+const DIFFS = [
+  { spd: 0.72, hear: 9, alert: 3, sight: 11, catch: 0.92 },
+  { spd: 1.0, hear: 14, alert: 5, sight: 16, catch: 1.15 },
+  { spd: 1.32, hear: 19, alert: 8, sight: 22, catch: 1.28 }
+];
+
+function applyOpts() {
+  diff = DIFFS[+$("sDiff").value] || DIFFS[1];
+  const q = +$("sGfx").value;
+  ren.setPixelRatio(q === 0 ? 0.65 : q === 1 ? 1 : Math.min(devicePixelRatio, 2));
+  ren.setSize(innerWidth, innerHeight);
+  torch.castShadow = q > 0;
+  const ms = q === 2 ? 2048 : 512;
+  torch.shadow.mapSize.set(ms, ms);
+  if (torch.shadow.map) {
+    torch.shadow.map.dispose();
+    torch.shadow.map = null;
+  }
+  ren.toneMappingExposure = +$("sBri").value;
+  cam.fov = +$("sFov").value;
+  cam.updateProjectionMatrix();
+  SFX.setVolume(+$("sVol").value);
+  scene.fog.density = q === 0 ? 0.068 : 0.05;
+  $("vg").style.opacity = q === 0 ? 0 : 1;
+  hq = q === 2 && !!THREE.EffectComposer && !!THREE.UnrealBloomPass;
+  ren.toneMapping = hq ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  floorMat.bumpScale = q === 2 ? 0.035 : 0.015;
+  floorMat.roughness = q === 2 ? 0.42 : 0.65;
+  floorMat.needsUpdate = true;
+  wallMat.bumpScale = q === 2 ? 0.045 : 0.02;
+  wallMat.needsUpdate = true;
+  if (hq && !composer) {
+    const pr = ren.getPixelRatio();
+    const rt = new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, {
+      type: THREE.HalfFloatType,
+      format: THREE.RGBAFormat,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter
+    });
+    composer = new THREE.EffectComposer(ren, rt);
+    composer.addPass(new THREE.RenderPass(scene, cam));
+    bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.7, 1);
+    composer.addPass(bloom);
+    grade = new THREE.ShaderPass(GradeShader);
+    composer.addPass(grade);
+  }
+  if (composer) {
+    composer.setPixelRatio(ren.getPixelRatio());
+    composer.setSize(innerWidth, innerHeight);
+  }
+  if (hq) $("vg").style.opacity = 0;
+}
+
+function startGame() {
+  applyOpts();
+  const sel = [...document.querySelectorAll("#sChars input:checked")].map(i => i.value);
+  if (!sel.length) sel.push("Granny");
+  for (let i = chars.length - 1; i >= 0; i--) {
+    if (!sel.includes(chars[i].n)) {
+      scene.remove(chars[i].mesh);
+      chars.splice(i, 1);
+    }
+  }
+  newDay();
+}
+
+["sDiff", "sGfx", "sBri", "sFov", "sVol"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("input", applyOpts);
+});
+
+$("soundBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  SFX.init();
+  const on = SFX.toggleMute();
+  $("soundBtn").textContent = on ? "🔊 Audio: ON" : "🔇 Audio: OFF";
+});
+
+// Controls & Pointer Lock (with seamless fallback if pointer lock is blocked in iframe)
+let dragLook = false, lastMouseX = 0, lastMouseY = 0, lockSupported = true;
+
+addEventListener("keydown", e => {
+  held[e.code] = true;
+  if (e.code === "KeyE" && !e.repeat) eTap = true;
+  if (e.code === "KeyF" && !e.repeat && state === "play") {
+    torchOn = !torchOn;
+    torch.intensity = torchOn ? 2.5 : 0;
+    torchLensMat.color.setHex(torchOn ? 0xfff3d1 : 0x2a2d34);
+    SFX.init();
+    SFX.torchClick(torchOn);
+    say(torchOn ? "Torch ON" : "Torch OFF (Stealth)");
+  }
+  if (e.code === "KeyM" && !e.repeat) $("soundBtn").click();
+  if (e.code === "Escape" && state === "play") {
+    state = "paused";
+    $("startBtn").textContent = "RESUME GAME";
+    $("ov").style.display = "flex";
+  }
+});
+addEventListener("keyup", e => { held[e.code] = false; });
+
+document.addEventListener("mousedown", e => {
+  if (state !== "play" || e.target !== ren.domElement) return;
+  if (document.pointerLockElement !== ren.domElement) {
+    dragLook = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    if (lockSupported && ren.domElement.requestPointerLock) {
+      try {
+        const res = ren.domElement.requestPointerLock();
+        if (res && res.catch) res.catch(() => { lockSupported = false; });
+      } catch (err) {
+        lockSupported = false;
+      }
+    }
+  }
+});
+
+document.addEventListener("mouseup", () => { dragLook = false; });
+
+document.addEventListener("mousemove", e => {
+  if (state !== "play") return;
+  if (document.pointerLockElement === ren.domElement) {
+    yaw -= e.movementX * 0.0022;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch - e.movementY * 0.0022));
+  } else if (dragLook) {
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    yaw -= dx * 0.0038;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch - dy * 0.0038));
+  }
+});
+
+// Touch look support for mobile / tablet
+let touchId = null, lastTouchX = 0, lastTouchY = 0;
+ren.domElement.addEventListener("touchstart", e => {
+  if (state !== "play" || touchId !== null) return;
+  const t = e.changedTouches[0];
+  touchId = t.identifier;
+  lastTouchX = t.clientX;
+  lastTouchY = t.clientY;
+}, { passive: true });
+ren.domElement.addEventListener("touchmove", e => {
+  if (state !== "play") return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === touchId) {
+      yaw -= (t.clientX - lastTouchX) * 0.0045;
+      pitch = Math.max(-1.3, Math.min(1.3, pitch - (t.clientY - lastTouchY) * 0.0045));
+      lastTouchX = t.clientX;
+      lastTouchY = t.clientY;
+    }
+  }
+}, { passive: true });
+ren.domElement.addEventListener("touchend", e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === touchId) touchId = null;
+  }
+});
+
+function launchOrResume() {
+  SFX.init();
+  if (state === "menu") {
+    startGame();
+  }
+  state = "play";
+  $("ov").style.display = "none";
+  if (ren.domElement.requestPointerLock) {
+    try {
+      const res = ren.domElement.requestPointerLock();
+      if (res && res.catch) res.catch(() => {
+        lockSupported = false;
+        say("Click & drag mouse to look around · WASD to move · E to interact");
+      });
+    } catch (err) {
+      lockSupported = false;
+      say("Click & drag mouse to look around · WASD to move · E to interact");
+    }
+  }
+}
+
+$("startBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  launchOrResume();
+});
+
+$("ov").addEventListener("click", e => {
+  if (e.target.closest("#opts") || e.target.closest("#startBtn")) return;
+  if (state === "menu" || state === "paused") {
+    launchOrResume();
+  }
+});
+
+document.addEventListener("pointerlockchange", () => {
+  const lk = document.pointerLockElement === ren.domElement;
+  if (lk) {
+    state = "play";
+    $("ov").style.display = "none";
+  } else if (state === "play" && lockSupported) {
+    state = "paused";
+    $("startBtn").textContent = "RESUME GAME";
+    $("ov").style.display = "flex";
+  }
+});
+
+document.addEventListener("pointerlockerror", () => {
+  lockSupported = false;
+  if (state === "play") {
+    say("Click & drag mouse to look around · WASD to move · E to interact");
+  }
+});
+
+/* ============================================================================
+   9. CHARACTER AI, SOUND PROPAGATION & HORROR ANIMATION LOOP
+   ============================================================================ */
+function updateChar(c, dt, mult) {
+  if (c.follow > 0) {
+    c.follow -= dt;
+    if (c.follow <= 0) {
+      tp(c, c.tf, c.ta);
+      c.alert = 4;
+    }
+    return;
+  }
+  if (c.f !== pf) {
+    c.tm -= dt;
+    if (c.tm <= 0) {
+      c.tm = 10 + Math.random() * 14;
+      const dir = Math.random() < 0.6 ? Math.sign(pf - c.f) : (Math.random() < 0.5 ? 1 : -1);
+      const nf = Math.max(-1, Math.min(FL - 1, c.f + dir));
+      const p = randomOpen(nf);
+      c.f = nf;
+      c.x = ctr(p[0]);
+      c.z = ctr(p[1]);
+    }
+    return;
+  }
+
+  const d = Math.hypot(P.x - c.x, P.z - c.z);
+  const s = sees(c, d);
+  const heard = run && moving && d < diff.hear;
+  const wasAlert = c.alert > 0;
+
+  if (s || heard) {
+    c.target = [cell(P.x), cell(P.z)];
+    c.alert = diff.alert;
+    if (!wasAlert && d < 18) SFX.spotSting();
+  } else {
+    c.alert -= dt;
+  }
+
+  const ch = c.alert > 0;
+  const gx = cell(c.x), gz = cell(c.z);
+  if (!ch && gx === c.target[0] && gz === c.target[1]) {
+    const stairCell = pf < 0 ? B_STAIR_UP : (Math.random() < 0.5 ? U : D);
+    c.target = Math.random() < 0.25 ? stairCell : randomOpen(pf);
+  }
+
+  const nx = bfs(gx, gz, c.target[0], c.target[1], pf);
+  let tx = nx ? ctr(nx[0]) : (s ? P.x : c.x);
+  let tz = nx ? ctr(nx[1]) : (s ? P.z : c.z);
+  if (s && d < C * 1.5) { tx = P.x; tz = P.z; }
+
+  // If resident reaches a closed interior door, pause briefly and push it open!
+  const blockingDoor = doors.find(dr => !dr.isOpen && Math.hypot(ctr(dr.cx) - c.x, ctr(dr.cz) - c.z) < 2.25);
+  if (blockingDoor) {
+    c.enemyWait = (c.enemyWait || 0) + dt;
+    c.mesh.rotation.y = Math.atan2(ctr(blockingDoor.cx) - c.x, ctr(blockingDoor.cz) - c.z);
+    if (c.enemyWait > 0.55) {
+      blockingDoor.isOpen = true;
+      c.enemyWait = 0;
+      const distGain = Math.max(0, 1 - d / 20);
+      SFX.doorCreak(true, distGain);
+    }
+    return;
+  } else {
+    c.enemyWait = 0;
+  }
+
+  const vx = tx - c.x, vz = tz - c.z, vl = Math.hypot(vx, vz) || 1;
+  const sp = c.sp * mult * (ch ? 1.92 : 1) * dt;
+  move(c, vx / vl * sp, vz / vl * sp, 0.3);
+  c.mv = ch ? 1.92 : 1;
+  c.mesh.rotation.y = Math.atan2(vx, vz);
+
+  // Spatial Enemy Footsteps
+  c.stepAcc += sp;
+  if (c.stepAcc > 0.95) {
+    c.stepAcc = 0;
+    const distGain = Math.max(0, 1 - d / 18);
+    if (distGain > 0.05) {
+      const angleToEnemy = Math.atan2(c.x - P.x, c.z - P.z) - (-yaw);
+      SFX.footstep(ch, Math.sin(angleToEnemy), distGain * 0.85);
+    }
+  }
+
+  if (ch && d < 14) say(c.n + " spotted you!");
+  if (d < 2.2 && ch) c.attackAnim = Math.min(1, c.attackAnim + dt * 4);
+  else c.attackAnim = Math.max(0, c.attackAnim - dt * 3);
+
+  if (hid && d < 2.4 && ch) {
+    c.fh = (c.fh || 0) + dt;
+    if (c.fh > 2.4) end(c.n + " ripped open the wardrobe doors!");
+  } else {
+    c.fh = 0;
+  }
+
+  if (!hid && d < diff.catch) {
+    const weaponNames = {
+      Granny: "Granny swung her bloody baseball bat!",
+      Grandpa: "Grandpa struck you down with his cane!",
+      Gardener: "The Gardener caught you with his rusty shears!",
+      Cook: "The Butcher Cook caught you with his meat cleaver!"
+    };
+    end(weaponNames[c.n] || (c.n + " caught you!"));
+  }
+}
+
+// Dust Motes & Volumetric Flashlight Cone
+const dust = (() => {
+  const n = 550, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    a[i * 3] = Math.random() * 16 - 8;
+    a[i * 3 + 1] = Math.random() * H;
+    a[i * 3 + 2] = Math.random() * 16 - 8;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(a, 3));
+  const p = new THREE.Points(g, new THREE.PointsMaterial({
+    color: 0xc2b29b, size: 0.038, transparent: true, opacity: 0.45,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  p.frustumCulled = false;
+  p.visible = false;
+  scene.add(p);
+  return p;
+})();
+
+const beamG = new THREE.ConeGeometry(6.8, 13, 24, 1, true);
+beamG.translate(0, -6.5, 0);
+beamG.rotateX(Math.PI / 2);
+const beam = new THREE.Mesh(beamG, new THREE.MeshBasicMaterial({
+  color: 0xffe4b5, transparent: true, opacity: 0.045,
+  blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false
+}));
+beam.position.set(0, -0.12, 0);
+beam.visible = false;
+cam.add(beam);
+
+const clock = new THREE.Clock();
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  let nearestDanger = 0;
+
+  if (state === "play") {
+    run = !!(held.ShiftLeft || held.ShiftRight);
+    const speed = (run ? 5.8 : 3.1) * dt;
+    let fx = (held.KeyW ? 1 : 0) - (held.KeyS ? 1 : 0);
+    let sx = (held.KeyD ? 1 : 0) - (held.KeyA ? 1 : 0);
+    const len = Math.hypot(fx, sx) || 1;
+    fx /= len; sx /= len;
+    moving = !!(fx || sx);
+
+    let camY = 1.62 + (moving ? Math.sin(t * (run ? 14 : 9)) * 0.055 : Math.sin(t * 1.8) * 0.012);
+    let camP = pitch;
+
+    if (wake > 0) {
+      wake -= dt;
+      const k = Math.min(1, Math.max(0, 1 - wake / 3.2)), e = k * k * (3 - 2 * k);
+      camY = 0.75 + e * 0.87;
+      camP = pitch + 1.1 * (1 - e);
+      P.x = BX + (9.4 - BX) * Math.max(0, (k - 0.55) / 0.45);
+      P.z = BZ;
+      moving = false;
+    } else if (hid) {
+      moving = false;
+      camY = 1.52;
+      P.x = hid.cx;
+      P.z = hid.cz;
+    } else if (climb) {
+      climb.t += dt;
+      const c2 = climb, fd2 = $("fade");
+      // Smoothly walk along the stairs instead of snapping/teleporting
+      const totalDur = 1.65;
+      const prog = Math.min(1, c2.t / totalDur);
+      const stepWave = Math.abs(Math.sin(c2.t * 11)) * 0.065;
+      if (c2.t < 0.85) {
+        const e = Math.min(1, c2.t / 0.85);
+        camY = 1.62 + c2.dy * e + stepWave;
+        move(P, c2.stepDx * dt, c2.stepDz * dt, 0.35);
+        moving = true;
+        if (c2.t > 0.52 && !c2.f) {
+          c2.f = 1;
+          fd2.style.transition = "opacity 0.32s";
+          fd2.style.opacity = 1;
+        }
+      } else {
+        if (!c2.s) {
+          c2.s = 1;
+          setFloor(c2.nf);
+          P.x = c2.a.x;
+          P.z = c2.a.z;
+          say(c2.nf < 0 ? "Basement" : "Floor " + (c2.nf + 1));
+          fd2.style.transition = "opacity 0.75s";
+          fd2.style.opacity = 0;
+        }
+        const e = Math.min(1, (c2.t - 0.85) / 0.8);
+        camY = 1.62 + c2.dy * (1 - e) + stepWave * 0.6;
+        move(P, c2.stepDx * 0.45 * dt, c2.stepDz * 0.45 * dt, 0.35);
+        moving = prog < 0.95;
+        if (c2.t >= totalDur) {
+          P.x = c2.a.x;
+          P.z = c2.a.z;
+          climb = null;
+        }
+      }
+    } else {
+      move(P, (-Math.sin(yaw) * fx + Math.cos(yaw) * sx) * speed, (-Math.cos(yaw) * fx - Math.sin(yaw) * sx) * speed, 0.4);
+    }
+
+    // Stairs Transition (walk onto stairs to climb smoothly; blocked if closed)
+    stairCd -= dt;
+    const stairCellX = cell(P.x), stairCellZ = cell(P.z);
+    const onStairs =
+      (pf < 0 && stairCellX === B_STAIR_UP[0] && stairCellZ === B_STAIR_UP[1]) ||
+      (pf >= 0 && stairCellX === U[0] && stairCellZ === U[1] && pf < FL - 1) ||
+      (pf >= 0 && stairCellX === D[0] && stairCellZ === D[1] && pf > -1);
+
+    if (onStairs && stairsClosed && stairCd <= 0) {
+      stairCd = 1.1;
+      say("Stairs are closed! Press E on stairs to open.");
+    } else if (!climb && stairCd <= 0 && onStairs) {
+      let nf = null, a = null, stepDx = 0, stepDz = 0;
+      if (pf < 0 && stairCellX === B_STAIR_UP[0] && stairCellZ === B_STAIR_UP[1]) {
+        nf = 0;
+        a = arriveBasementUp();
+        stepDx = 1.35;
+      } else if (pf >= 0 && stairCellX === U[0] && stairCellZ === U[1] && pf < FL - 1) {
+        nf = pf + 1;
+        a = arriveUp();
+        stepDz = -1.35;
+      } else if (pf >= 0 && stairCellX === D[0] && stairCellZ === D[1] && pf > -1) {
+        nf = pf - 1;
+        a = arriveDown();
+        stepDx = 1.35;
+      }
+      if (nf !== null) {
+        chars.forEach(c => {
+          if (c.f === pf && c.alert > 0 && Math.hypot(c.x - P.x, c.z - P.z) < 14) {
+            c.follow = 2.5;
+            c.tf = nf;
+            const rp = randomOpen(nf);
+            c.ta = { x: ctr(rp[0]), z: ctr(rp[1]) };
+          }
+        });
+        climb = { t: 0, nf, a, stepDx, stepDz, dir: Math.sign(nf - pf), dy: nf > pf ? 1.1 : -0.85 };
+        stairCd = 2.6;
+        SFX.footstep(true, 0, 0.9);
+        say(nf < 0 ? "Walking down into the Basement..." : (nf > pf ? "Walking up the stairs..." : "Walking up from the Basement..."));
+      }
+    }
+
+    // Golden Keys positioning & pickup
+    dKeys.forEach((k, i) => {
+      const showKey = !k.got && k.f === pf && dState[pf] && dState[pf][k.di] && dState[pf][k.di][k.dj] && dState[pf][k.di][k.dj].done;
+      k.mesh.visible = !!showKey;
+      if (showKey) {
+        const dr = dres[k.di];
+        const pullOut = 0.34 + (k.dj * 0.04);
+        const lx = 0, ly = 0.25 + k.dj * 0.31, lz = 0.12 + pullOut;
+        const pos = new THREE.Vector3(lx, ly, lz).applyAxisAngle(new THREE.Vector3(0, 1, 0), dr.g.rotation.y).add(dr.g.position);
+        k.mesh.position.set(pos.x, pos.y + Math.sin(t * 2.5 + i) * 0.05, pos.z);
+        k.mesh.rotation.y += dt * 2.2;
+      }
+    });
+
+    const hit = pendHit;
+    pendHit = null;
+    if (hit) {
+      hit.got = true;
+      hit.mesh.visible = false;
+      total++;
+      SFX.keyPickup();
+      say("Found Golden Key! (" + total + " / 10)");
+      if (dKeys.every(k => k.got) && day < 5) {
+        state = "trans";
+        $("fade").textContent = "DAY " + day + " SURVIVED";
+        $("fade").style.opacity = 1;
+        setTimeout(() => {
+          day++;
+          newDay();
+          $("fade").style.opacity = 0;
+          state = "play";
+        }, 2300);
+      } else if (dKeys.every(k => k.got)) {
+        say("All 10 keys collected! Go to Floor 1 front door & hold E!");
+      }
+    }
+
+    // Front Door Padlocks & Manual Opening
+    const dEx = Math.hypot(W * C - 4 - P.x, ctr(6) - P.z);
+    const nearExitLocked = pf === 0 && dEx < 3.2 && !exitOpen;
+    const nearExitUnlocked = pf === 0 && dEx < 3.2 && exitOpen && exitAmt < 0.5;
+    if (nearExitLocked) {
+      if (total < 10) {
+        say("Front Door Locked! Find all 10 keys (" + total + "/10)");
+      } else {
+        say("Hold E to unlock padlocks (" + unlocked + "/10)");
+        if (held.KeyE && unlockCd <= 0) {
+          unlockLock(unlocked);
+          unlocked++;
+          unlockCd = 0.34;
+          if (unlocked >= 10) {
+            exitOpen = true;
+            doorL.color.setHex(0x40c057);
+            say("All 10 locks removed — Press E to open front door!");
+          }
+        }
+      }
+    } else if (nearExitUnlocked && msgT <= 0) {
+      say("Press E to open front door");
+    }
+    unlockCd -= dt;
+    exitAmt += ((exitOpen && door.userData.opened ? 1 : 0) - exitAmt) * Math.min(1, dt * 2.2);
+    if (pf === 0 && exitOpen && door.userData.opened && P.x > W * C - 6) end(true);
+
+    // Priority Interaction on E: (1) Front Door, (2) Interior Doors, (3) Stairs Hatch, (4) Wardrobes, (5) Dressers
+    let nearDoor = null;
+    if (!hid) {
+      let bestDoorDist = 2.85;
+      doors.forEach(d => {
+        const dd = Math.hypot(ctr(d.cx) - P.x, ctr(d.cz) - P.z);
+        if (dd < bestDoorDist) {
+          bestDoorDist = dd;
+          nearDoor = d;
+        }
+      });
+    }
+
+    const nearStairs = !hid && (
+      Math.hypot(ctr(U[0]) - P.x, ctr(U[1]) - P.z) < 2.5 ||
+      Math.hypot(ctr(D[0]) - P.x, ctr(D[1]) - P.z) < 2.5 ||
+      (pf < 0 && Math.hypot(ctr(B_STAIR_UP[0]) - P.x, ctr(B_STAIR_UP[1]) - P.z) < 2.5)
+    );
+
+    let nearInteractive = nearExitLocked || nearExitUnlocked || !!nearDoor || nearStairs;
+    if (eTap) {
+      eTap = false;
+      if (hid) {
+        const x = hid;
+        hid = null;
+        $("slats").style.display = "none";
+        SFX.wardrobeCreak();
+        P.x = x.cx;
+        P.z = x.cz + (x.ry === 0 ? 1.2 : -1.2);
+        say("You stepped out of the wardrobe");
+      } else if (nearExitUnlocked) {
+        door.userData.opened = true;
+        SFX.doorCreak(true, 1);
+        say("Front door opened — RUN FOR YOUR LIFE!");
+      } else if (nearDoor) {
+        // Prevent closing a door directly inside the player's hitbox
+        const insideDoorway = Math.abs(P.x - ctr(nearDoor.cx)) < 1.5 && Math.abs(P.z - ctr(nearDoor.cz)) < 0.55;
+        if (nearDoor.isOpen && insideDoorway) {
+          say("Step out of the doorway to close the door.");
+        } else {
+          nearDoor.isOpen = !nearDoor.isOpen;
+          SFX.doorCreak(nearDoor.isOpen, 1);
+          say(nearDoor.isOpen ? "Door opened" : "Door closed");
+          // Slight creak sound can alert very close residents
+          chars.forEach(c => {
+            if (c.f === pf && Math.hypot(c.x - P.x, c.z - P.z) < 6.5) {
+              c.target = [cell(P.x), cell(P.z)];
+              c.alert = Math.max(c.alert, diff.alert * 0.45);
+            }
+          });
+        }
+      } else if (nearStairs) {
+        stairsClosed = !stairsClosed;
+        SFX.doorCreak(!stairsClosed, 0.9);
+        say(stairsClosed ? "Stairs closed" : "Stairs opened — walk onto stairs to climb");
+      } else {
+        let best = 2.0, tgt = -1, kind = 0;
+        dres.forEach((d, i) => {
+          const dd = Math.hypot(d.cx - P.x, d.cz - P.z);
+          if (dd < best) { best = dd; tgt = i; kind = 1; }
+        });
+        wards.forEach((w, i) => {
+          const dd = Math.hypot(w.cx - P.x, w.cz - P.z);
+          if (dd < best) { best = dd; tgt = i; kind = 2; }
+        });
+        if (kind === 2) {
+          hid = wards[tgt];
+          yaw = hid.ry === 0 ? Math.PI : 0;
+          pitch = 0;
+          $("slats").style.display = "block";
+          SFX.wardrobeCreak();
+          say("Hiding inside wardrobe... (Press E to exit)");
+        } else if (kind === 1) {
+          const st = dState[pf][tgt];
+          const j = st.findIndex(s => !s.done);
+          if (j < 0) {
+            say("All drawers here are already open.");
+          } else {
+            st[j].done = true;
+            SFX.drawerSlide();
+            // Drawer noise alerts nearby residents on the same floor
+            chars.forEach(c => {
+              if (c.f === pf && Math.hypot(c.x - P.x, c.z - P.z) < diff.hear + 4) {
+                c.target = [cell(P.x), cell(P.z)];
+                c.alert = Math.max(c.alert, diff.alert * 0.75);
+              }
+            });
+            if (st[j].key) {
+              pendHit = st[j].key;
+            } else {
+              say(["Empty drawer.", "Only dusty rags.", "Cobwebs and dead beetles.", "Nothing inside.", "Old rusted spoons."][Math.floor(Math.random() * 5)]);
+            }
+          }
+        }
+      }
+    }
+
+    if (!hid) {
+      if (nearDoor && msgT <= 0) {
+        say(nearDoor.isOpen ? "Press E to close door" : "Press E to open door");
+      } else if (nearStairs && msgT <= 0) {
+        say(stairsClosed ? "Stairs Closed — Press E to open stairs" : "Walk on stairs to climb · Press E to close stairs");
+      } else if (furn.some(d => Math.hypot(d.cx - P.x, d.cz - P.z) < 2.0)) {
+        nearInteractive = true;
+        if (msgT <= 0) say("Press E: Search Drawer / Hide in Wardrobe");
+      }
+    }
+    $("crosshair").classList.toggle("active", nearInteractive && !hid);
+
+    // Update Residents & Calculate Danger Proximity
+    chars.forEach(c => {
+      c.mv = 0;
+      updateChar(c, dt, (1 + 0.12 * (day - 1)) * diff.spd);
+      if (c.f === pf) {
+        const dist = Math.hypot(P.x - c.x, P.z - c.z);
+        const prox = Math.max(0, 1 - dist / 15);
+        nearestDanger = Math.max(nearestDanger, c.alert > 0 ? Math.max(0.45, prox) : prox * 0.55);
+      }
+    });
+
+    // Blood Vignette & Audio Heartbeat Tension
+    $("bloodVg").style.opacity = (nearestDanger * 0.85).toFixed(2);
+    SFX.updateTension(dt, nearestDanger, pf < 0);
+  }
+
+  // World Visual Updates
+  stairGateAmt += ((stairsClosed ? 1 : 0) - stairGateAmt) * Math.min(1, dt * 6);
+  stairUp.visible = pf >= 0 && pf < FL - 1;
+  stairDown.visible = pf >= 0;
+  bsmtStairUp.visible = pf < 0;
+  stairHatchUp.visible = pf >= 0 && pf < FL - 1 && stairGateAmt > 0.02;
+  stairHatchDown.visible = pf >= 0 && stairGateAmt > 0.02;
+  stairHatchUp.position.y = 2.4 - stairGateAmt * 2.25;
+  stairHatchDown.position.y = 2.4 - stairGateAmt * 2.25;
+  bed.visible = pf === 0;
+  door.rotation.y = exitAmt * 1.55;
+  arrows[0].visible = pf >= 0 && pf < FL - 1;
+  arrows[1].visible = pf >= 0;
+  arrows[2].visible = pf < 0;
+  arrows.forEach((a, i) => {
+    a.position.y = 2.45 + Math.sin(t * 3 + i) * 0.14;
+    a.rotation.y = t * 2;
+  });
+
+  locks.forEach(l => {
+    const u = l.userData;
+    if (u.t) {
+      u.t += dt;
+      l.rotation.x = Math.min(u.t * 3.5, 1.3);
+    }
+  });
+
+  doors.forEach(d => {
+    d.open += ((d.isOpen ? 1 : 0) - d.open) * Math.min(1, dt * 5.2);
+    d.g.rotation.y = -d.open * 1.55;
+  });
+  door.visible = doorL.visible = exitFrame.visible = pf === 0;
+
+  // Articulated Horror Character Animations (Limp, Weapon Raise, Head Twitch)
+  chars.forEach((c, idx) => {
+    const u = c.mesh.userData;
+    const isMoving = c.mv ? 1 : 0;
+    const speedFactor = c.mv || 0;
+    c.ph = (c.ph || 0) + dt * 5.8 * speedFactor;
+    c.sw = (c.sw || 0) + (isMoving - (c.sw || 0)) * Math.min(1, dt * 8);
+
+    const stride = Math.sin(c.ph) * 0.72 * c.sw;
+    const isChasing = c.alert > 0 ? 1 : 0;
+
+    // Asymmetric creepy limp for Granny & Grandpa
+    const limp = (u.type === "granny" || u.type === "grandpa") ? Math.max(0, Math.sin(c.ph)) * 0.14 * c.sw : 0;
+    u.legs[0].rotation.x = stride;
+    u.legs[1].rotation.x = -stride * 0.85;
+
+    // Left arm swing
+    u.arms[0].rotation.x = -stride * 0.65;
+    // Right weapon arm: raises bat/cleaver/shears menacingly when hunting!
+    const raiseAngle = isChasing ? (-1.15 - Math.sin(t * 10 + idx) * 0.18 - c.attackAnim * 0.8) : (-stride * 0.45);
+    u.arms[1].rotation.x += (raiseAngle - u.arms[1].rotation.x) * Math.min(1, dt * 9);
+
+    // Hunched spine & twitchy head tracking toward player when alerted
+    u.torsoPivot.rotation.x = u.baseHunch + (isChasing ? 0.14 : 0) + Math.sin(c.ph * 2) * 0.04 * c.sw;
+    u.torsoPivot.rotation.z = Math.sin(c.ph) * 0.07 * c.sw + limp * 0.4;
+
+    const twitch = Math.sin(t * 17 + idx * 5) > 0.94 ? 0.18 : 0;
+    u.headPivot.rotation.z = twitch + Math.sin(t * 2.3 + idx) * 0.05;
+    if (isChasing && c.f === pf) {
+      const lookPitch = Math.atan2(1.45 - 1.35, Math.hypot(P.x - c.x, P.z - c.z));
+      u.headPivot.rotation.x = -u.torsoPivot.rotation.x - lookPitch;
+    } else {
+      u.headPivot.rotation.x = -u.torsoPivot.rotation.x * 0.5;
+    }
+
+    c.mesh.visible = c.f === pf;
+    c.mesh.position.set(c.x, Math.abs(Math.sin(c.ph)) * 0.055 * c.sw + limp * 0.2, c.z);
+  });
+
+  // Flickering Bulbs
+  lamps.forEach((l, i) => {
+    l.intensity = 0.56 + Math.sin(t * 3.5 + i * 2) * 0.08 + (Math.random() < 0.015 ? -0.35 : 0);
+  });
+
+  // Dust Motes
+  if (hq) {
+    const a = dust.geometry.attributes.position.array;
+    for (let i = 0; i < a.length; i += 3) {
+      a[i] += Math.sin(t * 0.6 + i) * 0.002;
+      a[i + 1] += Math.sin(t * 0.8 + i * 0.7) * 0.0015;
+      a[i + 2] += Math.cos(t * 0.5 + i) * 0.002;
+      if (a[i] - P.x > 8) a[i] -= 16; else if (a[i] - P.x < -8) a[i] += 16;
+      if (a[i + 2] - P.z > 8) a[i + 2] -= 16; else if (a[i + 2] - P.z < -8) a[i + 2] += 16;
+    }
+    dust.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // Smooth Drawer Sliding
+  dres.forEach((d, i) => d.drs.forEach((dg, j) => {
+    const s = dState[pf] ? dState[pf][i][j] : null;
+    const tg = s && s.done ? 1 : 0;
+    d.o[j] += (tg - d.o[j]) * Math.min(1, dt * 6.5);
+    dg.position.z = 0.34 * d.o[j];
+  }));
+
+  wards.forEach(w => { w.g.visible = hid !== w; });
+  bsmt.visible = bsL.visible = bsRedL.visible = pf < 0;
+  dust.visible = hq && torchOn;
+  beam.visible = hq && torchOn && !hid;
+  beam.material.opacity = 0.042 + Math.sin(t * 23) * 0.004;
+
+  if (msgT > 0) {
+    msgT -= dt;
+    if (msgT <= 0) $("msg").textContent = "";
+  }
+
+  const remFloors = dKeys.filter(k => !k.got).map(k => k.f < 0 ? "Basement" : "Floor " + (k.f + 1)).join(", ");
+  $("hud").innerHTML =
+    `<b>DAY ${day} / 5</b> &nbsp;·&nbsp; <span style="color:#ffd43b">${pf < 0 ? "BASEMENT" : "FLOOR " + (pf + 1)}</span> &nbsp;·&nbsp; Torch: <b style="color:${torchOn ? "#ffe066" : "#868e96"}">${torchOn ? "ON [F]" : "OFF [F]"}</b><br>` +
+    `Keys: <b>${total} / 10</b>` +
+    (total >= 10 ? " &nbsp;·&nbsp; <span style='color:#69db7c'>Unlock Front Door (Floor 1)</span>" : (remFloors ? ` &nbsp;·&nbsp; Sense: <i>${remFloors}</i>` : ""));
+
+  if (hq && composer) {
+    grade.uniforms.time.value = t % 100;
+    grade.uniforms.exposure.value = ren.toneMappingExposure;
+    composer.render();
+  } else {
+    ren.render(scene, cam);
+  }
+}
+tick();
+</script>
+</body>
+</html>
